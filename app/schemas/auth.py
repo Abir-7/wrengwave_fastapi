@@ -1,6 +1,14 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
+class TokenPayload(BaseModel):
+    user_id:  str
+    user_role: str  # or UserRole if you want strict typing
+    user_email: str
+    iat: int
+    exp: int
+
+
 class UserCreateSchema(BaseModel):
     email: EmailStr
     password: str
