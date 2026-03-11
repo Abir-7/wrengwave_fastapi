@@ -13,9 +13,7 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_
 
 def require_role(*allowed_roles: UserRole):
     def dependency(current_user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
-        print(UserRole(current_user.user_role))
-        print(allowed_roles)
-
+    
         if UserRole(current_user.user_role) not in allowed_roles: 
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
