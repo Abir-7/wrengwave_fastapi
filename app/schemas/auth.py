@@ -19,9 +19,6 @@ class VerifyUserRequestSchema(BaseModel):
     user_id: str
     code: str
 
-class VerifyUserResponseSchema(BaseModel):
-   user_id: str
-   role: str
 
 
 

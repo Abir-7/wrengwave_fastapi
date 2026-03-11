@@ -12,7 +12,9 @@ from app.utils.code import generate_code
 from datetime import datetime, timedelta, timezone
 from app.utils.email import send_password_reset_email,send_verification_email
 from app.utils.epx_time import is_expire
-
+from app.schemas.auth import UserLoginResponseSchema
+from app.utils.jwt import create_jwt
+from app.core.config import settings
 class AuthService:
     def __init__(self, db:AsyncSession):
         self.db=db
@@ -68,7 +70,6 @@ class AuthService:
         auth = UserAuthentication(user_id=new_user.id, code=code,expire_time=expire_time)
         self.db.add(auth)
     
-
         try:
             await self.db.commit()
         except IntegrityError as e:
@@ -76,15 +77,12 @@ class AuthService:
             raise ValueError("Failed to create user profile") from e
         
         await self.db.refresh(new_user)
-        # signup
+       
         background_tasks.add_task(send_verification_email, new_user.email, code)
-
-        # reset password
-        # background_tasks.add_task(send_password_reset_email, new_user.email, code)
 
         return new_user
     
-    async def verify_user_email(self, user_id: str, code: str):
+    async def verify_user_email(self, user_id: str, code: str)->UserLoginResponseSchema:
         result = await self.db.execute(
         select(UserAuthentication)
         .where(
@@ -112,9 +110,13 @@ class AuthService:
         auth.status=AuthStatus.success
         await self.db.commit()
 
-        return user
+        access_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.ACCESS_TOKEN_EXPIRE_DAYS,secret_key=settings.ACCESS_SECRET_KEY)
 
-    async def user_login(self, user_email: str, password: str)->User:
+        refresh_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,secret_key=settings.REFRESH_SECRET_KEY)
+
+        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token)
+
+    async def user_login(self, user_email: str, password: str)->UserLoginResponseSchema:
         result = await self.db.execute(select(User).filter(User.email == user_email))
         user = result.scalar_one_or_none()
 
@@ -126,5 +128,11 @@ class AuthService:
 
         if not hash.verify_password(password, user.hashed_password):
             raise ValueError("Incorrect password")
+    
+        
+        access_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.ACCESS_TOKEN_EXPIRE_DAYS,secret_key=settings.ACCESS_SECRET_KEY)
 
-        return user
+        refresh_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,secret_key=settings.REFRESH_SECRET_KEY)
+
+        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token)
+    
