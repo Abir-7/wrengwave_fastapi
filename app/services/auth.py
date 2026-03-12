@@ -252,13 +252,15 @@ class AuthService:
     
 
     async def reset_password(self, user_id: str, password: str,token: str)->None:
-        print(user_id,password,token)
         user_authentication = await self.db.execute(select(UserAuthentication).where(UserAuthentication.token == token,UserAuthentication.status == AuthStatus.pending,UserAuthentication.user_id == user_id))
 
         auth = user_authentication.scalar_one_or_none()
 
         if not auth:
             raise ValueError("Verification token not found")
+        
+        if auth.status == AuthStatus.expire:
+            raise ValueError("Verification token has expired")
 
         if auth.expire_time and is_expire(auth.expire_time):
             auth.status = AuthStatus.expire
