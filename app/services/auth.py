@@ -1,6 +1,8 @@
 from sqlalchemy.ext.asyncio import AsyncSession 
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload, joinedload
+
 from fastapi import BackgroundTasks
 from app.database.models.user import User
 from app.database.models.user_profile import UserProfile
@@ -10,14 +12,17 @@ from app.utils import hash
 from sqlalchemy.exc import IntegrityError
 from app.utils.code import generate_code
 from datetime import datetime, timedelta, timezone
-from app.utils.email import send_password_reset_email,send_verification_email
+from app.utils.email import send_password_reset_email,send_verification_email,resend_code_email
 from app.utils.epx_time import is_expire
 from app.schemas.auth import UserLoginResponseSchema
 from app.utils.jwt import create_jwt
 from app.core.config import settings
+
+
 class AuthService:
     def __init__(self, db:AsyncSession):
         self.db=db
+
 
     async def create_user(self,
         background_tasks:BackgroundTasks,
@@ -82,6 +87,7 @@ class AuthService:
 
         return new_user
     
+
     async def verify_user_email(self, user_id: str, code: str)->UserLoginResponseSchema:
         result = await self.db.execute(
         select(UserAuthentication)
@@ -116,6 +122,7 @@ class AuthService:
 
         return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token)
 
+
     async def user_login(self, user_email: str, password: str)->UserLoginResponseSchema:
         result = await self.db.execute(select(User).filter(User.email == user_email))
         user = result.scalar_one_or_none()
@@ -136,3 +143,133 @@ class AuthService:
 
         return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token)
     
+
+    async def resend_code(self, user_id: str, background_tasks:BackgroundTasks)->None:
+        result = await self.db.execute(select(UserAuthentication).where(UserAuthentication.user_id == user_id).order_by(UserAuthentication.created_at.desc())
+        .limit(1))
+        user_authentication = result.scalar_one_or_none()
+
+        if not user_authentication:
+            raise ValueError("User authentication not found")
+        
+        user=await self.db.get(User,user_authentication.user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        if  user_authentication.status == AuthStatus.pending:
+            user_authentication.status = AuthStatus.expire
+
+    
+        code = generate_code(length=4)
+        expire_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+        auth = UserAuthentication(user_id=user_authentication.user_id, code=code,expire_time=expire_time)
+        self.db.add(auth)
+
+        try:
+            await self.db.commit()
+        except IntegrityError as e:
+            await self.db.rollback()
+            raise ValueError("Failed to send verification email") from e
+        
+
+        background_tasks.add_task(resend_code_email, user.email, code)
+            
+       
+
+    async def forgot_password(self, email: str, background_tasks:BackgroundTasks)->User:
+        result = await self.db.execute(select(User).filter(User.email == email))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise ValueError("User not found")
+
+        if not user.is_active:
+            raise ValueError("User is not active")
+
+        code = generate_code(length=4)
+        expire_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+        auth = UserAuthentication(user_id=user.id, code=code,expire_time=expire_time)
+        self.db.add(auth)
+
+        try:
+            await self.db.commit()
+        except IntegrityError as e:
+            await self.db.rollback()
+            raise ValueError("Failed to send password reset email") from e
+
+        background_tasks.add_task(send_password_reset_email, user.email, code)
+
+        return user
+    
+
+    async def verify_reset_password(self, user_id: str, code: str) -> UserAuthentication:
+        result = await self.db.execute(
+            select(UserAuthentication)
+            .where(
+                UserAuthentication.user_id == user_id,
+                UserAuthentication.status == AuthStatus.pending
+            )
+            .order_by(UserAuthentication.created_at.desc())
+            .limit(1)
+        )
+        auth = result.scalar_one_or_none()
+
+        if not auth:
+            raise ValueError("Verification code not found")
+
+        if auth.expire_time and is_expire(auth.expire_time):
+            auth.status = AuthStatus.expire
+            await self.db.commit()
+            raise ValueError("Verification code has expired")
+
+        if auth.code != code:
+            raise ValueError("Incorrect verification code")
+    
+        user = await self.db.get(User, user_id)
+        if not user:
+            raise ValueError("User not found")
+
+        token = create_jwt(
+            user_email=user.email,
+            user_id=str(user.id),
+            user_role=user.role,
+            expires_in_days=settings.ACCESS_TOKEN_EXPIRE_DAYS,
+            secret_key=settings.ACCESS_SECRET_KEY
+        )
+        expire_time = datetime.now(timezone.utc) + timedelta(minutes=10)
+        
+        auth.status = AuthStatus.success
+        new_auth = UserAuthentication(user_id=user.id, token=token, expire_time=expire_time)
+        self.db.add(new_auth)
+
+        try:
+            await self.db.commit()
+        except IntegrityError as e:
+            await self.db.rollback()
+            raise ValueError("Failed to verify. Please try again") from e
+
+        return new_auth
+    
+
+    async def reset_password(self, user_id: str, password: str,token: str)->None:
+        print(user_id,password,token)
+        user_authentication = await self.db.execute(select(UserAuthentication).where(UserAuthentication.token == token,UserAuthentication.status == AuthStatus.pending,UserAuthentication.user_id == user_id))
+
+        auth = user_authentication.scalar_one_or_none()
+
+        if not auth:
+            raise ValueError("Verification token not found")
+
+        if auth.expire_time and is_expire(auth.expire_time):
+            auth.status = AuthStatus.expire
+            await self.db.commit()
+            raise ValueError("Verification token has expired")
+        
+        result = await self.db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise ValueError("User not found")
+
+        user.hashed_password = hash.get_password_hash(password)
+        await self.db.commit()

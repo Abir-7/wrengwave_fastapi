@@ -10,7 +10,7 @@ async def _send_email(to: str, subject: str, html: str):
     message["To"] = to
     message["Subject"] = subject
     message.attach(MIMEText(html, "html"))
-
+    print(settings.EMAIL_USER, settings.EMAIL_PASS)
     await aiosmtplib.send(
         message,
         hostname=settings.SMTP_SERVER,
@@ -54,3 +54,12 @@ async def send_password_reset_email(to: str, code: str):
         code=code,
     )
     await _send_email(to, subject=f"{settings.APP_NAME} - Password Reset", html=html)
+
+async def resend_code_email(to: str, code: str):
+    html = _build_template(
+        app_name=settings.APP_NAME,
+        title="New Verification Code",
+        message="Use the code below to verify.",
+        code=code,
+    )
+    await _send_email(to, subject=f"{settings.APP_NAME} - New Verification Code", html=html)
