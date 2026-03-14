@@ -275,3 +275,16 @@ class AuthService:
 
         user.hashed_password = hash.get_password_hash(password)
         await self.db.commit()
+
+    async def update_password(self, user_id: str, new_password: str,old_password: str)->None:
+        result = await self.db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
+
+        if not user:
+            raise ValueError("User not found")
+
+        if not hash.verify_password(old_password, user.hashed_password):
+            raise ValueError("Incorrect old password")
+
+        user.hashed_password = hash.get_password_hash(new_password)
+        await self.db.commit()

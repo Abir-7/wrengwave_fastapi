@@ -1,6 +1,9 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 
+class SimpleResponseSchema(BaseModel):
+    message: str
+
 class TokenPayload(BaseModel):
     user_id:  str
     user_role: str  # or UserRole if you want strict typing
@@ -72,5 +75,8 @@ class ResetPasswordRequestSchema(BaseModel):
     password: str
     token: str
 
-class ResetPasswordResponseSchema(BaseModel):
-    message: str
+
+class UpdatePasswordRequestSchema(BaseModel):
+    user_id: str
+    new_password: str
+    old_password: str

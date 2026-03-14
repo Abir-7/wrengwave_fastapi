@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status , BackgroundTasks
 
 from app.services.auth import AuthService
 
-from app.schemas.auth import UserCreateSchema, SignUpResponseSchema,  VerifyUserRequestSchema, UserLoginSchema, UserLoginResponseSchema, ForgotPasswordRequestSchema, ForgotPasswordResponseSchema , VerifyResetPasswordRequestSchema, VerifyResetPasswordResponseSchema, ResendCodeRequestSchema, ResendCodeResponseSchema , ResetPasswordRequestSchema, ResetPasswordResponseSchema
+from app.schemas.auth import UserCreateSchema, SignUpResponseSchema,  VerifyUserRequestSchema, UserLoginSchema, UserLoginResponseSchema, ForgotPasswordRequestSchema, ForgotPasswordResponseSchema , VerifyResetPasswordRequestSchema, VerifyResetPasswordResponseSchema, ResendCodeRequestSchema, ResendCodeResponseSchema , ResetPasswordRequestSchema, SimpleResponseSchema, UpdatePasswordRequestSchema
 
 from app.database.dependencies import get_auth_service
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -79,10 +79,18 @@ async def verify_reset_password(payload:  VerifyResetPasswordRequestSchema, auth
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return VerifyResetPasswordResponseSchema(message="Password reset successfully", user_id=str(result.user_id), token=result.token)
 
-@router.post("/reset-password",response_model=ResetPasswordResponseSchema)
-async def reset_password(payload: ResetPasswordRequestSchema, auth_service: AuthService = Depends(get_auth_service))->ResetPasswordResponseSchema:
+@router.post("/reset-password",response_model=SimpleResponseSchema)
+async def reset_password(payload: ResetPasswordRequestSchema, auth_service: AuthService = Depends(get_auth_service))->SimpleResponseSchema:
     try:
         await auth_service.reset_password(user_id=payload.user_id, password=payload.password,token=payload.token)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return ResetPasswordResponseSchema(message="Password reset successfully")
+    return SimpleResponseSchema(message="Password reset successfully")
+
+@router.post("/update-password",response_model=SimpleResponseSchema)
+async def update_password(payload: UpdatePasswordRequestSchema, auth_service: AuthService = Depends(get_auth_service))->SimpleResponseSchema:
+    try:
+        await auth_service.update_password(user_id=payload.user_id, new_password=payload.new_password,old_password=payload.old_password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return SimpleResponseSchema(message="Password updated successfully")
