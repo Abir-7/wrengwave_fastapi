@@ -1,10 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status , BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status , BackgroundTasks,Form, UploadFile, File
 
 from app.services.auth import AuthService
 
 from app.schemas.auth import UserCreateSchema, SignUpResponseSchema,  VerifyUserRequestSchema, UserLoginSchema, UserLoginResponseSchema, ForgotPasswordRequestSchema, ForgotPasswordResponseSchema , VerifyResetPasswordRequestSchema, VerifyResetPasswordResponseSchema, ResendCodeRequestSchema, ResendCodeResponseSchema , ResetPasswordRequestSchema, SimpleResponseSchema, UpdatePasswordRequestSchema
 
 from app.database.dependencies import get_auth_service
+
+
+from app.dependencies.auth import get_current_user ,require_role
+from app.schemas.auth import TokenPayload
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -94,3 +99,25 @@ async def update_password(payload: UpdatePasswordRequestSchema, auth_service: Au
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return SimpleResponseSchema(message="Password updated successfully")
+
+@router.post("/update-profile", response_model=SimpleResponseSchema)
+async def update_profile(
+    _: TokenPayload = Depends(get_current_user),
+ user_id: str | None = Form(None),
+    full_name: str | None = Form(None),
+    bio: str | None = Form(None),
+    avatar: UploadFile | None = File(None),
+    auth_service: AuthService = Depends(get_auth_service),
+) -> SimpleResponseSchema:
+    try:
+
+        await auth_service.update_profile(
+            user_id=user_id,
+            full_name=full_name,
+            bio=bio,
+            avatar=avatar
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return SimpleResponseSchema(message="Profile updated successfully")

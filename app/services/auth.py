@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload, joinedload
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks,UploadFile
 from app.database.models.user import User
 from app.database.models.user_profile import UserProfile
 from app.database.models.user_authentication import UserAuthentication, AuthStatus
@@ -17,7 +17,7 @@ from app.utils.epx_time import is_expire
 from app.schemas.auth import UserLoginResponseSchema
 from app.utils.jwt import create_jwt
 from app.core.config import settings
-
+from app.utils.file_upload import save_upload_file
 
 class AuthService:
     def __init__(self, db:AsyncSession):
@@ -287,4 +287,29 @@ class AuthService:
             raise ValueError("Incorrect old password")
 
         user.hashed_password = hash.get_password_hash(new_password)
+        await self.db.commit()
+
+    async def update_profile(
+    self,
+    
+    user_id: str,
+    full_name: str,
+    bio: str,
+    avatar: UploadFile ,
+) -> None:
+    # Fetch profile first before doing any I/O side effects
+        result = await self.db.execute(
+            select(UserProfile).where(UserProfile.user_id == user_id)
+        )
+        profile = result.scalar_one_or_none()
+        if not profile:
+            raise ValueError(f"User not found: {user_id}")
+
+        # Only upload avatar if provided, avoiding unnecessary I/O
+        if avatar is not None:
+            profile.avatar_url = await save_upload_file(avatar)
+
+        profile.full_name = full_name
+        profile.bio = bio
+
         await self.db.commit()
