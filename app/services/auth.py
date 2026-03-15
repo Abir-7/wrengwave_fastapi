@@ -18,7 +18,7 @@ from app.schemas.auth import UserLoginResponseSchema
 from app.utils.jwt import create_jwt
 from app.core.config import settings
 from app.utils.file_upload import save_upload_file
-
+from app.utils.file_delete import delete_file
 class AuthService:
     def __init__(self, db:AsyncSession):
         self.db=db
@@ -291,12 +291,13 @@ class AuthService:
 
     async def update_profile(
     self,
-    
+
     user_id: str,
     full_name: str,
     bio: str,
     avatar: UploadFile ,
 ) -> None:
+        print(user_id)
     # Fetch profile first before doing any I/O side effects
         result = await self.db.execute(
             select(UserProfile).where(UserProfile.user_id == user_id)
@@ -306,10 +307,28 @@ class AuthService:
             raise ValueError(f"User not found: {user_id}")
 
         # Only upload avatar if provided, avoiding unnecessary I/O
+        old_avatar = profile.avatar_url
         if avatar is not None:
-            profile.avatar_url = await save_upload_file(avatar)
+            new_avatar_url = await save_upload_file(avatar)
+            profile.avatar_url =  new_avatar_url
+        
+       
 
         profile.full_name = full_name
         profile.bio = bio
 
         await self.db.commit()
+        if old_avatar and new_avatar_url:
+            print(delete_file(
+                old_avatar
+            ))
+    
+    async def new_access_token(self, user_id: str)->str:
+        result = await self.db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
+        if not user:
+            raise ValueError("User not found")
+        access_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.ACCESS_TOKEN_EXPIRE_DAYS,secret_key=settings.ACCESS_SECRET_KEY)
+        return {"access_token":access_token}
+
+   

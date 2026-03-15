@@ -3,8 +3,8 @@ import uuid
 from fastapi import UploadFile
 
 # Base uploads folder
-UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), "uploads")
-
+# UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), "uploads")
+UPLOAD_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
 # Supported extensions
 IMAGE_EXT = {"jpg", "jpeg", "png", "gif", "webp"}
 AUDIO_EXT = {"mp3", "wav", "m4a", "ogg"}

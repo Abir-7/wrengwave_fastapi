@@ -93,17 +93,16 @@ async def reset_password(payload: ResetPasswordRequestSchema, auth_service: Auth
     return SimpleResponseSchema(message="Password reset successfully")
 
 @router.post("/update-password",response_model=SimpleResponseSchema)
-async def update_password(payload: UpdatePasswordRequestSchema, auth_service: AuthService = Depends(get_auth_service))->SimpleResponseSchema:
+async def update_password( payload: UpdatePasswordRequestSchema, credentials: TokenPayload = Depends(get_current_user), auth_service: AuthService = Depends(get_auth_service))->SimpleResponseSchema:
     try:
-        await auth_service.update_password(user_id=payload.user_id, new_password=payload.new_password,old_password=payload.old_password)
+        await auth_service.update_password(user_id=credentials.user_id, new_password=payload.new_password,old_password=payload.old_password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return SimpleResponseSchema(message="Password updated successfully")
 
 @router.post("/update-profile", response_model=SimpleResponseSchema)
 async def update_profile(
-    _: TokenPayload = Depends(get_current_user),
- user_id: str | None = Form(None),
+    credentials: TokenPayload = Depends(get_current_user),
     full_name: str | None = Form(None),
     bio: str | None = Form(None),
     avatar: UploadFile | None = File(None),
@@ -112,7 +111,7 @@ async def update_profile(
     try:
 
         await auth_service.update_profile(
-            user_id=user_id,
+            user_id=credentials.user_id,
             full_name=full_name,
             bio=bio,
             avatar=avatar
@@ -121,3 +120,12 @@ async def update_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     return SimpleResponseSchema(message="Profile updated successfully")
+@router.get("/new-token", response_model=dict)
+async def new_access_token(
+        credentials: TokenPayload = Depends(get_current_user), 
+        auth_service: AuthService = Depends(get_auth_service)):
+    try:
+        result = await auth_service.new_access_token(credentials.user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return result

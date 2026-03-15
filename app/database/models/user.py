@@ -18,11 +18,13 @@ class User(BaseModel):
     hashed_password = Column(String, nullable=False)
     is_active = Column(Boolean, default=False)
     role = Column(Enum(UserRole, name="user_role"), nullable=False, server_default="customer")
-
-    profile = relationship("UserProfile", back_populates="user", uselist=False,
-                             cascade="all, delete-orphan")
+    profile = relationship("UserProfile", back_populates="user", uselist=False,cascade="all, delete-orphan")
+    
     authentications = relationship(
         "UserAuthentication",
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    location = relationship("UserLocation", back_populates="user",uselist=False)
+    cars = relationship("UserCar", back_populates="user")
+    mechanic_data = relationship("MechanicData", back_populates="user",uselist=False)

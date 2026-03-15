@@ -7,9 +7,23 @@ from app.database.models.user import UserRole
 
 
 bearer_scheme = HTTPBearer()
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> TokenPayload:
-    return verify_jwt(secret_key=settings.ACCESS_SECRET_KEY, token=credentials.credentials)
+def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
+) -> TokenPayload:
+    try:
+        payload = verify_jwt(
+            secret_key=settings.ACCESS_SECRET_KEY,
+            token=credentials.credentials
+        )
+   
+        return payload
 
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(e),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 def require_role(*allowed_roles: UserRole):
     def dependency(current_user: TokenPayload = Depends(get_current_user)) -> TokenPayload:

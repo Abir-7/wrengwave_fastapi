@@ -1,7 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from uuid import UUID
-from app.database.models.user import UserRole
-
+from typing import Optional
 # Profile model
 class UserProfileResponse(BaseModel):
     full_name: str | None = None
@@ -23,3 +22,14 @@ class UserWithProfileResponse(BaseModel):
     model_config = {
         "from_attributes": True  # <-- enables nested ORM conversion
     }
+
+
+
+
+# ---------------USER CAR-----------------
+class UserCarData(BaseModel):
+    brand: str
+    model:str
+    year: str
+    image_url:str
+    image_id: str

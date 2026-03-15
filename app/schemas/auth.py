@@ -77,6 +77,5 @@ class ResetPasswordRequestSchema(BaseModel):
 
 
 class UpdatePasswordRequestSchema(BaseModel):
-    user_id: str
     new_password: str
     old_password: str
