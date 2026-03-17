@@ -8,25 +8,12 @@ from app.database.models.user import UserRole
 from typing import List, Optional
 import json
 from app.utils.file_upload import save_upload_file
-from app.utils.data_format_helper.user_car_data_helper import format_cars_with_images
+from app.utils.data_format_helper.customer_car_data_helper import format_cars_with_images
 
 
 
-router = APIRouter(prefix="/user", tags=["user"])
+router = APIRouter(prefix="/customer", tags=["customer"])
 
-@router.get("/me",response_model=UserWithProfileResponse)
-async def get_me(
-    current_user: TokenPayload = Depends(get_current_user),
-    user_service: UserService = Depends(get_user_service)):
-
-    return await user_service.get_user_profile(current_user.user_id)
-
-@router.get("/{user_id}",response_model=UserWithProfileResponse)
-async def get_user_profile(
-    user_id: str,
-    _: TokenPayload = Depends(require_role(UserRole.admin)),
-    user_service: UserService = Depends(get_user_service)):
-    return await user_service.get_user_profile(user_id)
 
 
 @router.post("/add-cars",)

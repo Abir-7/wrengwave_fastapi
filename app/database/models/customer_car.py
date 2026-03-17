@@ -16,3 +16,5 @@ class UserCar(BaseModel):
 
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id",ondelete="CASCADE"), nullable=False,)
     user = relationship("User", back_populates="cars")
+    
+    car_issues = relationship("UserCarIssue", back_populates="car", cascade="all, delete-orphan")

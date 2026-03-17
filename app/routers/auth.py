@@ -3,12 +3,16 @@ from fastapi import APIRouter, Depends, HTTPException, status , BackgroundTasks,
 from app.services.auth import AuthService
 
 from app.schemas.auth import UserCreateSchema, SignUpResponseSchema,  VerifyUserRequestSchema, UserLoginSchema, UserLoginResponseSchema, ForgotPasswordRequestSchema, ForgotPasswordResponseSchema , VerifyResetPasswordRequestSchema, VerifyResetPasswordResponseSchema, ResendCodeRequestSchema, ResendCodeResponseSchema , ResetPasswordRequestSchema, SimpleResponseSchema, UpdatePasswordRequestSchema
-
 from app.database.dependencies import get_auth_service
-
-
 from app.dependencies.auth import get_current_user ,require_role
 from app.schemas.auth import TokenPayload
+
+from app.schemas.user import UserWithProfileResponse
+from app.services.user import UserService
+from app.database.dependencies import get_user_service
+from app.dependencies.auth import require_role
+from app.database.models.user import UserRole
+
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -61,7 +65,7 @@ async def user_login(payload: UserLoginSchema, auth_service: AuthService = Depen
 @router.post("/resend-code" , response_model=ResendCodeResponseSchema)
 async def resend_code(payload: ResendCodeRequestSchema, background_tasks: BackgroundTasks, auth_service: AuthService = Depends(get_auth_service))->ResendCodeResponseSchema:
     try:
-        result = await auth_service.resend_code(payload.user_id,background_tasks=background_tasks) 
+       await auth_service.resend_code(payload.user_id,background_tasks=background_tasks) 
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return ResendCodeResponseSchema(message="Code resent successfully")
@@ -129,3 +133,12 @@ async def new_access_token(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     return result
+
+
+@router.get("/{user_id}",response_model=UserWithProfileResponse)
+async def get_user_profile(
+    user_id: str,
+    _: TokenPayload = Depends(require_role(UserRole.admin)),
+    user_service: UserService = Depends(get_user_service)):
+    return await user_service.get_user_profile(user_id)
+

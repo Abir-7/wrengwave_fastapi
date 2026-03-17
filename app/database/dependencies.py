@@ -4,6 +4,7 @@ from app.database.session import get_db
 from app.services.auth import AuthService
 from app.services.user import UserService
 from app.services.common import CommonService
+from app.services.mechanic import MechanicService
 
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
     return AuthService(db)
@@ -14,3 +15,6 @@ def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
 
 def get_common_service(db: AsyncSession = Depends(get_db)) -> CommonService:
     return CommonService(db)
+
+def get_mechanic_service(db: AsyncSession = Depends(get_db)) -> MechanicService:
+    return MechanicService(db)

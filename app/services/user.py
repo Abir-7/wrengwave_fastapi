@@ -4,7 +4,7 @@ from app.database.models.user import User
 from fastapi import HTTPException, status
 from sqlalchemy.orm import selectinload
 from app.schemas.user import UserWithProfileResponse
-from app.database.models.user_car import UserCar
+from app.database.models.customer_car import UserCar
 from app.database.models.user_location import UserLocation
 from typing import List
 from app.schemas.user import UserCarData

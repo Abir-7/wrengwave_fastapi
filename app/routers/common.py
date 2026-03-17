@@ -7,7 +7,19 @@ from app.database.models.user import UserRole
 from app.schemas.auth import TokenPayload
 from app.schemas.common import UserLocationCreate,UserLocationResponse
 from app.services.common import CommonService
+from app.schemas.user import UserWithProfileResponse
+from app.database.dependencies import get_user_service
+from app.dependencies.auth import get_current_user
+from app.services.user import UserService
 router = APIRouter(prefix="/common", tags=["common"])
+
+@router.get("/me",response_model=UserWithProfileResponse)
+async def get_me(
+    current_user: TokenPayload = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service)):
+
+    return await user_service.get_user_profile(current_user.user_id)
+
 
 @router.post("/locations", response_model=UserLocationResponse)
 async def update_user_location(

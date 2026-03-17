@@ -28,3 +28,4 @@ class User(BaseModel):
     location = relationship("UserLocation", back_populates="user",uselist=False)
     cars = relationship("UserCar", back_populates="user")
     mechanic_data = relationship("MechanicData", back_populates="user",uselist=False)
+    car_issues = relationship("UserCarIssue", back_populates="user")
