@@ -2,8 +2,8 @@ from typing import List, Dict, Optional
 from fastapi import UploadFile, HTTPException, status
 import json
 from app.utils.file_upload import save_upload_file
-
-async def format_cars_with_images(cars_data: str, images: Optional[List[UploadFile]]) -> List[Dict]:
+from app.schemas.customer import UserCarData
+async def format_cars_with_images(cars_data: str, images: Optional[List[UploadFile]]) -> List[UserCarData]:
 
     if not images or len(images) == 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No images provided")
