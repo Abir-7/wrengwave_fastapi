@@ -5,6 +5,8 @@ from typing import List
 from app.schemas.customer import UserCarData
 from app.core.http_client import get_client
 from typing import Optional
+from datetime import datetime
+from app.database.models.customer_car_issue import UserCarIssue
 import httpx
 import asyncio
 AI_SERVER_URL = "http://localhost:5000"
@@ -33,6 +35,7 @@ class CustomerService:
     # ------------------------
     async def analyze_car_issue(
         self,
+        user_id:str,
         car_id: str,
         description: str,
         images: Optional[List[UploadFile]],
@@ -51,7 +54,7 @@ class CustomerService:
         if images:
             tasks += [self._read_upload("images", img) for img in images]
 
-        if audio:
+        if audios:
             tasks += [self._read_upload("audios", aud) for aud in audios]
 
         results = await asyncio.gather(*tasks)
@@ -66,12 +69,20 @@ class CustomerService:
             )
 
             response.raise_for_status()
-            car_issue = response.json()
+            ai_data = response.json()
 
-            service_date 
-            car_id
+            new_issue = UserCarIssue(
+            car_id=car_id,
+            user_id=user_id,
+            service_date=datetime.fromisoformat(service_date),
+            summary=ai_data.get("summary"),
+            issue=ai_data.get("issue"),
+            severity_level=ai_data.get("severity_level"),
+        )
 
-            return car_issue
+            self.db.add(new_issue)
+            await self.db.commit()
+            return new_issue
 
         except httpx.TimeoutException:
             raise HTTPException(status_code=504, detail="AI server timed out")

@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 class UserCarIssue(BaseModel):
     __tablename__ = "user_car_issues"
     
-    service_date = Column(DateTime, nullable=False)
+    service_date = Column(DateTime(timezone=True), nullable=True)
     summary = Column(String, nullable=True)
     issue = Column(String, nullable=True)
     severity_level = Column(String, nullable=True)
@@ -29,7 +29,7 @@ class CarIssueData(BaseModel):
     audio_files = Column(JSONB, nullable=True)
     image_files = Column(JSONB, nullable=True)
     description= Column(String, nullable=True)
-    
+
     user_car_issue_id=Column(UUID(as_uuid=True), ForeignKey("user_car_issues.id",ondelete="CASCADE"), nullable=False,)
     user_car_issue = relationship("UserCarIssue", back_populates="car_issue_data")
 

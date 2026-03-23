@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends ,UploadFile, File, Form
-from app.database.dependencies import get_user_service 
+from app.database.dependencies import get_customer_service
 from app.dependencies.auth import require_role
 from app.schemas.auth import TokenPayload
 from typing import Optional
@@ -17,26 +17,29 @@ async def add_cars(
     cars_data: str = Form(...),
     images: List[UploadFile] = File(...),
     current_user: TokenPayload = Depends(require_role(UserRole.customer)),
-    customer_service: CustomerService = Depends(get_user_service)):
+    customer_service: CustomerService = Depends(get_customer_service)):
 
     formated_cars = await format_cars_with_images(cars_data, images)
     return await customer_service.save_user_car_data(current_user.user_id, formated_cars)
 
 @router.get("/my-cars")
-async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_user_service)):
+async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
     pass
 
 
-@router.post("/{car_id}")
+@router.post("/car-issue/{car_id}")
 async def car_proxy(
+    
     car_id: str,
     description: str = Form(...),
     images: Optional[List[UploadFile]] = File(None),
     audios: Optional[List[UploadFile]] = File(None),  # ← changed
     service_date: str = Form(...),
-    customer_service: CustomerService = Depends(get_user_service),
+    current_user: TokenPayload = Depends(require_role(UserRole.customer)),
+    customer_service: CustomerService = Depends(get_customer_service),
 ):
     return await customer_service.analyze_car_issue(
+        user_id=current_user.user_id,
         car_id=car_id,        
         description=description,
         images=images,
