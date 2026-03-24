@@ -4,11 +4,21 @@ from fastapi import HTTPException, UploadFile
 from typing import List
 from app.schemas.customer import UserCarData
 from app.core.http_client import get_client
-from typing import Optional
-from datetime import datetime
+from typing import Optional,List,Tuple
+from app.utils.parse_time_date import parse_time_string, parse_date_string
 from app.database.models.customer_car_issue import UserCarIssue
+from app.database.models.user import User
+from app.database.models.user_location import UserLocation
+from sqlalchemy import select,func
+from app.utils.distance_calculation import haversine
+from app.database.models.user_profile import UserProfile
+from app.database.models.mechanic_data import MechanicData
+from app.database.models.service_booking import CarBookingService
+from app.database.models.mechanic_ratings import MechanicRating
 import httpx
 import asyncio
+from app.database.models.user import UserRole
+
 AI_SERVER_URL = "http://localhost:5000"
 
 class CustomerService:
@@ -41,6 +51,9 @@ class CustomerService:
         images: Optional[List[UploadFile]],
         audios: Optional[List[UploadFile]],
         service_date: str,
+        service_time: str,
+        latitude: Optional[float],
+        longitude: Optional[float],
     ):
         if images and len(images) > 3:
             raise HTTPException(status_code=400, detail="Maximum 3 images allowed")
@@ -74,10 +87,13 @@ class CustomerService:
             new_issue = UserCarIssue(
             car_id=car_id,
             user_id=user_id,
-            service_date=datetime.fromisoformat(service_date),
+            service_date=parse_date_string(service_date),
+            service_time=parse_time_string(service_time),
             summary=ai_data.get("summary"),
             issue=ai_data.get("issue"),
             severity_level=ai_data.get("severity_level"),
+            latitude=latitude,
+            longitude=longitude
         )
 
             self.db.add(new_issue)
@@ -93,7 +109,96 @@ class CustomerService:
                 detail=e.response.text,
             )
         
+    async def get_mechanics(self, user_id: str, car_issue_id: str):
+        user_id = str(user_id)
+        car_issue_id = str(car_issue_id)
 
+        
+        # 1. Get car issue
+       
+        car_issue_result = await self.db.execute(
+            select(UserCarIssue).where(
+                UserCarIssue.user_id == user_id,
+                UserCarIssue.id == car_issue_id
+            )
+        )
+        car_issue = car_issue_result.scalar_one_or_none()
+
+        if not car_issue:
+            raise HTTPException(status_code=404, detail="Car issue not found")
+
+        if car_issue.latitude is None or car_issue.longitude is None:
+            raise HTTPException(status_code=400, detail="Car issue has no location")
+
+        latitude = car_issue.latitude
+        longitude = car_issue.longitude
+
+        # 2. Ratings subquery
+
+        ratings_subq = (
+            select(
+                MechanicRating.mechanic_id.label("mechanic_id"),
+                func.count(MechanicRating.id).label("total_ratings"),
+                func.coalesce(func.avg(MechanicRating.rating), 0.0).label("avg_rating"),
+            )
+            .group_by(MechanicRating.mechanic_id)
+            .subquery()
+        )
+
+        # 3. Fetch mechanics
+  
+        result = await self.db.execute(
+            select(
+                UserLocation,
+                User,
+                UserProfile,
+                MechanicData,
+                ratings_subq.c.get("total_ratings").label("total_ratings"),
+                ratings_subq.c.get("avg_rating").label("avg_rating"),
+            )
+            .join(User, User.id == UserLocation.user_id)
+            .outerjoin(UserProfile, User.id == UserProfile.user_id)
+            .outerjoin(MechanicData, User.id == MechanicData.user_id)
+            .outerjoin(ratings_subq, ratings_subq.c.get("mechanic_id") == User.id)
+            .where(User.role == UserRole.mechanic)
+        )
+
+        rows:List[Tuple[UserLocation, User,UserProfile,MechanicData]] = result.all()
+
+        # 4. Distance filtering
+   
+        nearby_mechanics = []
+
+        for loc, user, profile, mechanic_data, total_ratings, avg_rating in rows:
+            if loc.latitude is None or loc.longitude is None:
+                continue
+
+            distance = haversine(latitude, longitude, loc.latitude, loc.longitude)
+
+            if distance <= 2000:
+                nearby_mechanics.append({
+                    "mechanic_id": str(user.id),
+                    # "email": user.email,
+                    "distance_km": round(distance, 2),
+                    "latitude": loc.latitude,
+                    "longitude": loc.longitude,
+                    "full_name": profile.full_name if profile else None,
+                    # "bio": profile.bio if profile else None,
+                    "avatar_url": profile.avatar_url if profile else None,
+                    "shop_name": mechanic_data.shop_name if mechanic_data else None,
+                    "initial_charge": mechanic_data.initial_charge if mechanic_data else None,
+                    "year_of_experience": mechanic_data.year_of_experience if mechanic_data else None,
+                    "service_area": mechanic_data.service_area if mechanic_data else None,
+                    "specialist": mechanic_data.specialist if mechanic_data else None,
+                    # "national_image_id": mechanic_data.national_image_id if mechanic_data else None,
+                    "national_id_image_url": mechanic_data.national_id_image_url if mechanic_data else None,
+                    "certificates": mechanic_data.certificates if mechanic_data else None,
+                    "total_ratings": total_ratings or 0,
+                    "avg_rating": round(avg_rating or 0, 2),
+                })
+
+        nearby_mechanics.sort(key=lambda x: x["distance_km"])
+        return nearby_mechanics
 
 
 

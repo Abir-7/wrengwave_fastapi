@@ -8,3 +8,12 @@ class UserCarData(BaseModel):
     image_url:str
     image_id: str
     tag_number: str
+
+
+
+
+
+
+class BookMechanic(BaseModel):
+    mechanic_id: str
+    car_issue_id: str

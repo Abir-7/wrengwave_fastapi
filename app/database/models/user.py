@@ -25,7 +25,19 @@ class User(BaseModel):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    
     location = relationship("UserLocation", back_populates="user",uselist=False)
     cars = relationship("UserCar", back_populates="user")
     mechanic_data = relationship("MechanicData", back_populates="user",uselist=False)
     car_issues = relationship("UserCarIssue", back_populates="user")
+    mechanic_info = relationship(
+        "CarBookingService",
+        foreign_keys="CarBookingService.mechanic_id",
+        back_populates="mechanic"
+    )
+
+    customer_info = relationship(
+        "CarBookingService",
+        foreign_keys="CarBookingService.booked_by",
+        back_populates="customer"
+    )

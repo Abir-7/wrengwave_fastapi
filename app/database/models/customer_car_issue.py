@@ -1,5 +1,5 @@
 # app/database/models/user_profile.py
-from sqlalchemy import Column, String, ForeignKey, DateTime
+from sqlalchemy import Column, String, ForeignKey, Date, Time,Float
 
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import UUID
@@ -8,8 +8,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 class UserCarIssue(BaseModel):
     __tablename__ = "user_car_issues"
-    
-    service_date = Column(DateTime(timezone=True), nullable=True)
+
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
+    service_date = Column(Date, nullable=True)
+    service_time = Column(Time, nullable=True)
     summary = Column(String, nullable=True)
     issue = Column(String, nullable=True)
     severity_level = Column(String, nullable=True)
@@ -21,6 +24,8 @@ class UserCarIssue(BaseModel):
     car = relationship("UserCar", back_populates="car_issues")
 
     car_issue_data = relationship("CarIssueData", back_populates="user_car_issue")
+    
+    service_booking = relationship("CarBookingService", back_populates="car_issue")
 
 
 class CarIssueData(BaseModel):
