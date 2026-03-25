@@ -9,6 +9,8 @@ class UserLocationCreate(BaseModel):
     city: Optional[str] = None
     country: Optional[str] = None
 
+
+
 class UserLocationResponse(UserLocationCreate):
     id: UUID
     user_id: UUID
@@ -16,3 +18,12 @@ class UserLocationResponse(UserLocationCreate):
     class Config:
         from_attributes = True
 
+
+class GiveRatingCreate(BaseModel):
+    given_to: UUID
+    rating: float
+    review: Optional[str]
+
+class GetRatingReq(BaseModel):
+    user_id: UUID
+   

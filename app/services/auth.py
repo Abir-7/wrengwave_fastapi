@@ -65,12 +65,13 @@ class AuthService:
         self.db.add_all([
             UserProfile(user_id=new_user.id, full_name=full_name, bio=bio, avatar_url=avatar_url),
             UserAuthentication(user_id=new_user.id, code=code, expire_time=expire_time),
-            AverageRating(user_id=new_user.id, user_type=role),
+            AverageRating(user_id=new_user.id, user_type=role,avg_rating=0.0,total_rating=0),
         ])
 
         try:
             await self.db.commit()
         except IntegrityError as e:
+            print(e)
             await self.db.rollback()
             raise ValueError("Failed to create user") from e
 
