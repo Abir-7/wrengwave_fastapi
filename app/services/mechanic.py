@@ -27,3 +27,6 @@ class MechanicService:
         except Exception as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Failed to save mechanic data: {str(e)}")
+        
+
+       

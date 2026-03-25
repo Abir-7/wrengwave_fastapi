@@ -14,10 +14,14 @@ from app.utils.distance_calculation import haversine
 from app.database.models.user_profile import UserProfile
 from app.database.models.mechanic_data import MechanicData
 from app.database.models.service_booking import CarBookingService
-from app.database.models.mechanic_ratings import MechanicRating
+from app.database.models.ratings import AverageRating
+
+
+from app.database.models.user import UserRole
 import httpx
 import asyncio
-from app.database.models.user import UserRole
+
+
 
 AI_SERVER_URL = "http://localhost:5000"
 
@@ -113,9 +117,7 @@ class CustomerService:
         user_id = str(user_id)
         car_issue_id = str(car_issue_id)
 
-        
         # 1. Get car issue
-       
         car_issue_result = await self.db.execute(
             select(UserCarIssue).where(
                 UserCarIssue.user_id == user_id,
@@ -133,43 +135,28 @@ class CustomerService:
         latitude = car_issue.latitude
         longitude = car_issue.longitude
 
-        # 2. Ratings subquery
-
-        ratings_subq = (
-            select(
-                MechanicRating.mechanic_id.label("mechanic_id"),
-                func.count(MechanicRating.id).label("total_ratings"),
-                func.coalesce(func.avg(MechanicRating.rating), 0.0).label("avg_rating"),
-            )
-            .group_by(MechanicRating.mechanic_id)
-            .subquery()
-        )
-
-        # 3. Fetch mechanics
-  
+        # 2. Fetch mechanics (without ratings)
         result = await self.db.execute(
             select(
                 UserLocation,
                 User,
                 UserProfile,
                 MechanicData,
-                ratings_subq.c.get("total_ratings").label("total_ratings"),
-                ratings_subq.c.get("avg_rating").label("avg_rating"),
+                AverageRating
             )
             .join(User, User.id == UserLocation.user_id)
             .outerjoin(UserProfile, User.id == UserProfile.user_id)
             .outerjoin(MechanicData, User.id == MechanicData.user_id)
-            .outerjoin(ratings_subq, ratings_subq.c.get("mechanic_id") == User.id)
+            .outerjoin(AverageRating, AverageRating.user_id == User.id)
             .where(User.role == UserRole.mechanic)
         )
 
-        rows:List[Tuple[UserLocation, User,UserProfile,MechanicData]] = result.all()
+        rows: list[tuple[UserLocation, User, UserProfile, MechanicData,AverageRating]] = result.all()
 
-        # 4. Distance filtering
-   
+        # 3. Distance filtering
         nearby_mechanics = []
 
-        for loc, user, profile, mechanic_data, total_ratings, avg_rating in rows:
+        for loc, user, profile, mechanic_data,rating in rows:
             if loc.latitude is None or loc.longitude is None:
                 continue
 
@@ -178,40 +165,24 @@ class CustomerService:
             if distance <= 2000:
                 nearby_mechanics.append({
                     "mechanic_id": str(user.id),
-                    # "email": user.email,
+                    # location
                     "distance_km": round(distance, 2),
                     "latitude": loc.latitude,
                     "longitude": loc.longitude,
+                    # profile
                     "full_name": profile.full_name if profile else None,
-                    # "bio": profile.bio if profile else None,
                     "avatar_url": profile.avatar_url if profile else None,
+                    # mechanic data
                     "shop_name": mechanic_data.shop_name if mechanic_data else None,
                     "initial_charge": mechanic_data.initial_charge if mechanic_data else None,
-                    "year_of_experience": mechanic_data.year_of_experience if mechanic_data else None,
-                    "service_area": mechanic_data.service_area if mechanic_data else None,
-                    "specialist": mechanic_data.specialist if mechanic_data else None,
-                    # "national_image_id": mechanic_data.national_image_id if mechanic_data else None,
-                    "national_id_image_url": mechanic_data.national_id_image_url if mechanic_data else None,
-                    "certificates": mechanic_data.certificates if mechanic_data else None,
-                    "total_ratings": total_ratings or 0,
-                    "avg_rating": round(avg_rating or 0, 2),
+                    # rating
+                    "avg_rating": rating.avg_rating if rating else None,
+                    "total_rating": rating.total_rating if rating else None,
+                
                 })
 
         nearby_mechanics.sort(key=lambda x: x["distance_km"])
         return nearby_mechanics
-
-
-
-
-
-
-
-
-
-
-
-         # -----------HELPER-------------
-    
     async def _read_upload(self, field: str, upload: UploadFile):
         data = await upload.read()
         return (field, (upload.filename, data, upload.content_type))

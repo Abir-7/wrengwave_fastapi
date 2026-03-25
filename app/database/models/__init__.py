@@ -6,6 +6,6 @@ from app.database.models.customer_car import UserCar
 from app.database.models.user_location import UserLocation
 from app.database.models.mechanic_data import MechanicData
 from app.database.models.customer_car_issue import UserCarIssue ,CarIssueData
-from app.database.models.mechanic_ratings import MechanicRating
+from app.database.models.ratings import Ratings,AverageRating
 from app.database.models.service_booking import CarBookingService
-__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","MechanicRating","CarBookingService"]
+__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService"]

@@ -34,3 +34,24 @@ class MechanicDataResponse(BaseModel):
     model_config = {
         "from_attributes": True  
     }
+
+
+
+class MechanicProfile(BaseModel):
+    id: UUID
+    shop_name: Optional[str]
+    initial_charge: Optional[str]
+    year_of_experience: Optional[int]
+    service_area: Optional[str]
+    specialist: Optional[List[str]]
+    full_name: Optional[str]
+    bio: Optional[str]
+    avatar_url: Optional[str]
+    avg_rating: Optional[float]
+    total_rating: Optional[int]
+    certificates: Optional[List[Certificate]] = []
+    latitude: Optional[float]
+    longitude: Optional[float]
+    model_config = {
+        "from_attributes": True  
+    }
