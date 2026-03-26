@@ -3,8 +3,7 @@ from app.utils.jwt import verify_jwt
 from app.core.config import settings
 from fastapi import Depends, HTTPException, status
 from app.schemas.auth import TokenPayload
-from app.database.models.user import UserRole
-
+from app.database.models.enum import UserRole
 
 bearer_scheme = HTTPBearer()
 def get_current_user(

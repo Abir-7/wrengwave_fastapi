@@ -1,53 +1,108 @@
-# app/database/models/user.py
-from sqlalchemy import Column, String, Boolean
-from sqlalchemy.orm import relationship
-from app.database.models.base import BaseModel
-# from app.database.models.user_profile import UserProfile
-# from app.database.models.user_authentication import  UserAuthentication
+from __future__ import annotations
+
 import enum
+from typing import List, Optional
 
-from sqlalchemy.dialects.postgresql import  ENUM 
+from sqlalchemy import String, Boolean, Enum
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-class UserRole(enum.Enum):
-    admin = "admin"
-    customer = "customer"
-    mechanic = "mechanic"
+from app.database.models.base import BaseModel
+
+from app.database.models.user_profile import UserProfile
+from app.database.models.customer_car import UserCar
+from app.database.models.user_location import UserLocation
+from app.database.models.mechanic_data import MechanicData
+from app.database.models.service_booking import CarBookingService
+from app.database.models.ratings import AverageRating
+from app.database.models.user_authentication import UserAuthentication
+from app.database.models.customer_car_issue import UserCarIssue
+from app.database.models.enum import UserRole
 
 
+
+
+# -----------------------------
+# User Model
+# -----------------------------
 
 class User(BaseModel):
     __tablename__ = "users"
 
-    email = Column(String, unique=True, index=True, nullable=False)
-    hashed_password = Column(String, nullable=False)
-    is_active = Column(Boolean, default=False)
-    role = Column(ENUM(UserRole, name="user_role"), nullable=False, server_default="customer")
-    profile = relationship("UserProfile", back_populates="user", uselist=False,cascade="all, delete-orphan")
+    # ---------------- Columns ---------------- #
 
-    average_rating = relationship(
-        "AverageRating",
-        back_populates="user",
-        cascade="all, delete-orphan"
+    email: Mapped[str] = mapped_column(
+        String,
+        unique=True,
+        index=True,
+        nullable=False,
     )
 
-    authentications = relationship(
-        "UserAuthentication",
-        back_populates="user",
-        cascade="all, delete-orphan"
+    hashed_password: Mapped[str] = mapped_column(
+        String,
+        nullable=False,
     )
-    
-    location = relationship("UserLocation", back_populates="user",uselist=False)
-    cars = relationship("UserCar", back_populates="user")
-    mechanic_data = relationship("MechanicData", back_populates="user",uselist=False)
-    car_issues = relationship("UserCarIssue", back_populates="user")
-    mechanic_info = relationship(
-        "CarBookingService",
+
+    is_active: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
+
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="user_role"),
+        nullable=False,
+        server_default=UserRole.customer.value,
+    )
+
+    # ---------------- Relationships ---------------- #
+
+    # One-to-One
+    profile: Mapped[Optional["UserProfile"]] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    location: Mapped[Optional["UserLocation"]] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    mechanic_data: Mapped[Optional["MechanicData"]] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+
+    average_rating: Mapped[Optional["AverageRating"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # One-to-Many
+    authentications: Mapped[List["UserAuthentication"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    cars: Mapped[List["UserCar"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    car_issues: Mapped[List["UserCarIssue"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+
+    # Bookings where this user is mechanic
+    mechanic_bookings: Mapped[List["CarBookingService"]] = relationship(
         foreign_keys="CarBookingService.mechanic_id",
-        back_populates="mechanic"
+        back_populates="mechanic",
     )
 
-    customer_info = relationship(
-        "CarBookingService",
+    # Bookings where this user is customer
+    customer_bookings: Mapped[List["CarBookingService"]] = relationship(
         foreign_keys="CarBookingService.booked_by",
-        back_populates="customer"
+        back_populates="customer",
     )

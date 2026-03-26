@@ -1,7 +1,7 @@
 import jwt
 import datetime
 from typing import Optional
-from app.database.models.user import UserRole
+from app.database.models.enum import UserRole
 from app.schemas.auth import TokenPayload
 
 ALGORITHM = "HS256"

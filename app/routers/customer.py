@@ -3,7 +3,7 @@ from app.database.dependencies import get_customer_service
 from app.dependencies.auth import require_role
 from app.schemas.auth import TokenPayload
 from typing import Optional
-from app.database.models.user import UserRole
+from app.database.models.enum import UserRole
 from typing import List
 from app.utils.data_format_helper.customer_car_data_helper import format_cars_with_images
 from app.services.customer import CustomerService

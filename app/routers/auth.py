@@ -11,7 +11,7 @@ from app.schemas.user import UserWithProfileResponse
 from app.services.user import UserService
 from app.database.dependencies import get_user_service
 from app.dependencies.auth import require_role
-from app.database.models.user import UserRole
+from app.database.models.enum import UserRole
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])

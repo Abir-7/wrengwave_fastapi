@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.database.dependencies import get_common_service
 from app.services.common import CommonService
 from app.dependencies.auth import require_role
-from app.database.models.user import UserRole
+from app.database.models.enum import UserRole
 from app.schemas.auth import TokenPayload
 from app.schemas.common import UserLocationCreate,UserLocationResponse,GiveRatingCreate, GetRatingReq
 from app.services.common import CommonService

@@ -17,7 +17,7 @@ from app.database.models.service_booking import CarBookingService
 from app.database.models.ratings import AverageRating
 
 
-from app.database.models.user import UserRole
+from app.database.models.enum import UserRole
 import httpx
 import asyncio
 

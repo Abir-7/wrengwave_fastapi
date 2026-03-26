@@ -3,7 +3,7 @@ from typing import List,Optional
 from app.database.dependencies import get_mechanic_service
 
 from app.dependencies.auth import require_role
-from app.database.models.user import UserRole
+from app.database.models.enum import UserRole
 from app.schemas.auth import TokenPayload
 from app.schemas.mechanic import MechanicDataResponse
 from app.services.mechanic import MechanicService
