@@ -9,7 +9,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.models.base import BaseModel
  # Enum for user roles
-from app.database.models.enum import UserRole
+from app.database.models.enum import user_role_enum,UserRole
+
+
 
 if TYPE_CHECKING:
     from app.database.models.user import User
@@ -36,9 +38,9 @@ class Ratings(BaseModel):
         nullable=False,
     )
 
-    rating_by: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="rating_by"),
-        nullable=False,
+    given_by_user_type: Mapped[UserRole] = mapped_column(
+       user_role_enum,
+       nullable=False
     )
 
     # ---------------- Relationships ---------------- #
@@ -69,10 +71,11 @@ class AverageRating(BaseModel):
     avg_rating: Mapped[float] = mapped_column(Float, nullable=False)
     total_rating: Mapped[int] = mapped_column(Integer, nullable=False)
     user_type: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_type"),
-        nullable=False,
+       user_role_enum,
+        nullable=False
     )
 
     user: Mapped["User"] = relationship(
-        back_populates="average_rating"
+        back_populates="average_rating",
+    
     )

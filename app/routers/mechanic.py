@@ -39,3 +39,7 @@ async def get_mechanics_all_booking_services(
     mechanic_service: MechanicService = Depends(get_mechanic_service)
 ):
     return await mechanic_service.get_mechanics_all_booking_services(mechanic_id=credentials.user_id, booking_status=booking_status)
+
+@router.get("/get-booking-details/{booking_id}")
+async def get_booking_details(booking_id: str, _: TokenPayload = Depends(require_role(UserRole.mechanic)), mechanic_service: MechanicService = Depends(get_mechanic_service)):
+    return await mechanic_service.booking_detais(booking_id=booking_id)

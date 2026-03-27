@@ -28,6 +28,7 @@ class UserCarIssue(BaseModel):
     summary: Mapped[Optional[str]] = mapped_column(String)
     issue: Mapped[Optional[str]] = mapped_column(String)
     severity_level: Mapped[Optional[str]] = mapped_column(String)
+    confidence_level: Mapped[Optional[Float]] = mapped_column(Float)
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

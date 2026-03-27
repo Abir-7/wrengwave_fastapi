@@ -16,8 +16,8 @@ from app.database.models.service_booking import CarBookingService
 from app.database.models.ratings import AverageRating
 from app.database.models.user_authentication import UserAuthentication
 from app.database.models.customer_car_issue import UserCarIssue
-from app.database.models.enum import UserRole
-
+from app.database.models.enum import UserRole,user_role_enum
+from app.database.models.ratings import Ratings
 
 
 
@@ -48,9 +48,9 @@ class User(BaseModel):
     )
 
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="user_role"),
-        nullable=False,
-        server_default=UserRole.customer.value,
+      user_role_enum,
+      nullable=False,
+      default=UserRole.customer
     )
 
     # ---------------- Relationships ---------------- #
@@ -77,6 +77,7 @@ class User(BaseModel):
     average_rating: Mapped[Optional["AverageRating"]] = relationship(
         back_populates="user",
         cascade="all, delete-orphan",
+        uselist=False
     )
 
     # One-to-Many
@@ -105,4 +106,18 @@ class User(BaseModel):
     customer_bookings: Mapped[List["CarBookingService"]] = relationship(
         foreign_keys="CarBookingService.booked_by",
         back_populates="customer",
+    )
+
+    # Ratings received by this user
+    ratings_received: Mapped[List["Ratings"]] = relationship(
+        foreign_keys="Ratings.given_to",
+        back_populates="user_given_to",
+        cascade="all, delete-orphan",
+    )
+
+    # Ratings given by this user
+    ratings_given: Mapped[List["Ratings"]] = relationship(
+        foreign_keys="Ratings.given_by",
+        back_populates="user_given_by",
+        cascade="all, delete-orphan",
     )

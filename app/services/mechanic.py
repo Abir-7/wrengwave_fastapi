@@ -58,6 +58,7 @@ class MechanicService:
                     "customer_id": str(user.id) if user else None,
                     "customer_email": user.email if user else None,
                     "customer_name": profile.full_name if profile else None,
+                    "customer_avatar": profile.avatar_url if profile else None,
 
                     # car data
                     "car_brand": car.brand if car else None,
@@ -66,52 +67,51 @@ class MechanicService:
                     # issue data
                     "issue_summary": issue.summary if issue else None,
                     "issue_detail": issue.issue if issue else None,
+                    "severity_level": issue.severity_level if issue else None,
                     "service_date": issue.service_date if issue else None,
                     "service_time": issue.service_time if issue else None,
                 })
 
             return response
-#     async def get_mechanics_all_booking_services(
-#     self, mechanic_id: str, booking_status: BookingStatus
-# ) :
-#         result = await self.db.execute(
-#             select(
-#                 CarBookingService.id,
-#                 CarBookingService.status,
-#                 User.id.label("customer_id"),
-#                 User.email.label("customer_email"),
-#                 UserProfile.full_name.label("customer_name"),
-#                 Car.brand.label("car_brand"),
-#                 Car.model.label("car_model"),
-#                 UserCarIssue.summary.label("issue_summary"),
-#                 UserCarIssue.issue.label("issue_detail"),
-#                 UserCarIssue.service_date,
-#                 UserCarIssue.service_time,
-#             )
-#             .join(User, CarBookingService.customer_id == User.id, isouter=True)
-#             .join(UserProfile, User.id == UserProfile.user_id, isouter=True)
-#             .join(UserCarIssue, CarBookingService.car_issue_id == UserCarIssue.id, isouter=True)
-#             .join(Car, UserCarIssue.car_id == Car.id, isouter=True)
-#             .where(
-#                 CarBookingService.mechanic_id == mechanic_id,
-#                 CarBookingService.status == booking_status,
-#             )
-#         )
 
-#         rows = result.mappings().all()
-#         return [
-#             BookingServiceResponse(
-#                 booking_id=str(row.id),
-#                 status=row.status.value,
-#                 customer_id=str(row.customer_id) if row.customer_id else None,
-#                 customer_email=row.customer_email,
-#                 customer_name=row.customer_name,
-#                 car_brand=row.car_brand,
-#                 car_model=row.car_model,
-#                 issue_summary=row.issue_summary,
-#                 issue_detail=row.issue_detail,
-#                 service_date=row.service_date,
-#                 service_time=row.service_time,
-#             )
-#             for row in rows
-#         ]
+    async def booking_detais(
+        self, booking_id: str
+    ) :
+        result=await self.db.execute(select(CarBookingService).where(CarBookingService.id == booking_id).options(
+            joinedload(CarBookingService.customer).joinedload(User.profile),
+      joinedload(CarBookingService.customer)
+        .joinedload(User.average_rating), joinedload(CarBookingService.customer)
+        .joinedload(User.location),
+            joinedload(CarBookingService.car_issue)
+            .joinedload(UserCarIssue.car),
+     
+        ))
+        booking = result.scalar_one_or_none()
+        response = {
+        "booking_id": str(booking.id),
+        "status": booking.status.value if booking.status else None,
+        "mechanic_id": str(booking.mechanic_id),
+        "customer": {
+            "user_id": str(booking.customer.id),
+            "full_name": booking.customer.profile.full_name if booking.customer.profile else None,
+            "email": booking.customer.email,
+            "avatar_url": booking.customer.profile.avatar_url if booking.customer.profile else None,"avg_rating": booking.customer.average_rating.avg_rating if booking.customer.average_rating else None,
+            "location":booking.customer.location.address if booking.customer.location else None,
+            # "longitude": booking.customer.location.longitude if booking.customer.location else None,
+            # "latitude": booking.customer.location.latitude if booking.customer.location else None
+        },
+        "car": {
+            "brand": booking.car_issue.car.brand,
+            "model": booking.car_issue.car.model,
+            # "year": booking.car_issue.car.year,
+            # "image_url": booking.car_issue.car.image_url
+        },
+        "issue": booking.car_issue.issue,
+        "summary": booking.car_issue.summary,
+        "service_date": booking.car_issue.service_date.isoformat() if booking.car_issue.service_date else None,
+        "service_time": str(booking.car_issue.service_time) if booking.car_issue.service_time else None,
+        "latitude": booking.car_issue.latitude,
+        "longitude": booking.car_issue.longitude,
+        "confidence_level": getattr(booking.car_issue, "confidence_level", None),
+    }
+        return response

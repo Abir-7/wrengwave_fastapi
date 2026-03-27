@@ -1,8 +1,8 @@
-"""add field certificates and remove certificate image field
+"""create all table
 
-Revision ID: 3ff15cba96a5
-Revises: b13f70ad1d4b
-Create Date: 2026-03-17 09:15:04.993496
+Revision ID: 36a8c97c6510
+Revises: 7a59c95f4677
+Create Date: 2026-03-27 08:34:37.586333
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '3ff15cba96a5'
-down_revision: Union[str, Sequence[str], None] = 'b13f70ad1d4b'
+revision: str = '36a8c97c6510'
+down_revision: Union[str, Sequence[str], None] = '7a59c95f4677'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

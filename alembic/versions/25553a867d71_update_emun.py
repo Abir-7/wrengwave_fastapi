@@ -1,8 +1,8 @@
-"""add cascade
+"""update emun
 
-Revision ID: 4cf718ea1e7d
-Revises: 912b3f90a8ed
-Create Date: 2026-03-07 12:42:20.040906
+Revision ID: 25553a867d71
+Revises: 75b8bae44fd4
+Create Date: 2026-03-27 09:20:17.661958
 
 """
 from typing import Sequence, Union
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '4cf718ea1e7d'
-down_revision: Union[str, Sequence[str], None] = '912b3f90a8ed'
+revision: str = '25553a867d71'
+down_revision: Union[str, Sequence[str], None] = '75b8bae44fd4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

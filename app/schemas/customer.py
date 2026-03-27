@@ -1,4 +1,12 @@
 from pydantic import BaseModel
+from typing import Optional
+class AIResponse(BaseModel):
+    summary: str
+    issue: Optional[str]
+    severity_level: Optional[str]
+    confidence_level: int
+
+
 
 # ---------------USER CAR-----------------
 class UserCarData(BaseModel):

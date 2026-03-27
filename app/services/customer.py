@@ -2,7 +2,7 @@ from app.database.models.customer_car import UserCar
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, UploadFile
 from typing import List
-from app.schemas.customer import UserCarData
+from app.schemas.customer import UserCarData, AIResponse
 from app.core.http_client import get_client
 from typing import Optional,List,Tuple
 from app.utils.parse_time_date import parse_time_string, parse_date_string
@@ -87,15 +87,17 @@ class CustomerService:
 
             response.raise_for_status()
             ai_data = response.json()
+            ai_data_obj = AIResponse(**ai_data)
 
             new_issue = UserCarIssue(
             car_id=car_id,
             user_id=user_id,
             service_date=parse_date_string(service_date),
             service_time=parse_time_string(service_time),
-            summary=ai_data.get("summary"),
-            issue=ai_data.get("issue"),
-            severity_level=ai_data.get("severity_level"),
+            summary=ai_data_obj.summary,
+            issue=ai_data_obj.issue,
+            severity_level=ai_data_obj.severity_level,
+            confidence_level=ai_data_obj.confidence_level,
             latitude=latitude,
             longitude=longitude
         )
@@ -162,7 +164,7 @@ class CustomerService:
 
             distance = haversine(latitude, longitude, loc.latitude, loc.longitude)
 
-            if distance <= 2000:
+            if distance <= 4000:
                 nearby_mechanics.append({
                     "mechanic_id": str(user.id),
                     # location
@@ -183,6 +185,22 @@ class CustomerService:
 
         nearby_mechanics.sort(key=lambda x: x["distance_km"])
         return nearby_mechanics
+    
+    
+    async def book_mechanic(self, mechanic_id: str,car_issue_id: str,user_id: str):
+        mechanic_id = str(mechanic_id)
+        car_issue_id = str(car_issue_id)
+        user_id = str(user_id)
+        new_booking = CarBookingService(
+            booked_by=user_id,
+            mechanic_id=mechanic_id,
+            user_car_issue_id=car_issue_id,
+        )
+
+        self.db.add(new_booking)
+        await self.db.commit()
+        return new_booking
+
     async def _read_upload(self, field: str, upload: UploadFile):
         data = await upload.read()
         return (field, (upload.filename, data, upload.content_type))

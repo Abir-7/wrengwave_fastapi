@@ -9,7 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.models.base import BaseModel
-from app.database.models.enum import BookingStatus
+from app.database.models.enum import BookingStatus , booking_status_enum
 if TYPE_CHECKING:
     from app.database.models.user import User
     from app.database.models.customer_car_issue import UserCarIssue
@@ -26,9 +26,9 @@ class CarBookingService(BaseModel):
     # ---------------- Columns ---------------- #
 
     status: Mapped[BookingStatus] = mapped_column(
-        Enum(BookingStatus, name="booking_status"),
+        booking_status_enum,
         nullable=False,
-        server_default=BookingStatus.pending.value,
+        default=BookingStatus.pending
     )
 
     user_car_issue_id: Mapped[uuid.UUID] = mapped_column(
