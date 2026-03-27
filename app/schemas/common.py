@@ -27,3 +27,7 @@ class GiveRatingCreate(BaseModel):
 class GetRatingReq(BaseModel):
     user_id: UUID
    
+
+
+class BookingStatusReq(BaseModel):
+    status: str

@@ -6,7 +6,7 @@ from app.database.models.user_profile import UserProfile
 from app.database.models.user import User
 from app.database.models.service_booking import CarBookingService,BookingStatus
 from app.database.models.customer_car_issue import UserCarIssue
-from sqlalchemy import select
+from sqlalchemy import select,update
 from sqlalchemy.orm import joinedload
 class MechanicService:
     def __init__(self, db:AsyncSession):
@@ -115,3 +115,17 @@ class MechanicService:
         "confidence_level": getattr(booking.car_issue, "confidence_level", None),
     }
         return response
+    
+    async def accept_or_reject_booking(self, booking_id: str, booking_status: BookingStatus, mechanic_id: str) -> None:
+        try:
+            await self.db.execute(
+                update(CarBookingService)
+                .where(CarBookingService.id == booking_id)
+                .values(status=booking_status, mechanic_id=mechanic_id)
+            )
+            await self.db.commit()
+            return {"message": "Booking status updated successfully", "booking_id": booking_id, "status": booking_status}
+            
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to update booking status: {str(e)}")

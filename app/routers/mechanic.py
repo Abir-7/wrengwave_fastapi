@@ -6,6 +6,7 @@ from app.dependencies.auth import require_role
 from app.database.models.enum import UserRole
 from app.schemas.auth import TokenPayload
 from app.schemas.mechanic import MechanicDataResponse
+from app.schemas.common import BookingStatusReq
 from app.services.mechanic import MechanicService
 from app.utils.file_upload import save_upload_file
 from app.utils.data_format_helper.mechanic_data_helper import format_mechanic_data
@@ -43,3 +44,11 @@ async def get_mechanics_all_booking_services(
 @router.get("/get-booking-details/{booking_id}")
 async def get_booking_details(booking_id: str, _: TokenPayload = Depends(require_role(UserRole.mechanic)), mechanic_service: MechanicService = Depends(get_mechanic_service)):
     return await mechanic_service.booking_detais(booking_id=booking_id)
+
+@router.patch("/accept-or-reject-booking/{booking_id}")
+async def accept_or_reject_booking(booking_id: str, booking_status: BookingStatusReq, credentials: TokenPayload = Depends(require_role(UserRole.mechanic)), mechanic_service: MechanicService = Depends(get_mechanic_service)):
+
+    if booking_status.status not in [BookingStatus.accepted.value, BookingStatus.rejected.value]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
+
+    return await mechanic_service.accept_or_reject_booking(booking_id=booking_id, booking_status=booking_status.status, mechanic_id=credentials.user_id)

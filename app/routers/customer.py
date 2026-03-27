@@ -27,6 +27,12 @@ async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole
     pass
 
 
+@router.get("/my-bookings")
+async def get_my_bookings(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
+
+    return await customer_service.get_users_bookings(user_id=current_user.user_id)
+
+
 @router.post("/car-issue/{car_id}")
 async def car_proxy(
     

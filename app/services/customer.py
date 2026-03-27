@@ -9,7 +9,8 @@ from app.utils.parse_time_date import parse_time_string, parse_date_string
 from app.database.models.customer_car_issue import UserCarIssue
 from app.database.models.user import User
 from app.database.models.user_location import UserLocation
-from sqlalchemy import select,func
+from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from app.utils.distance_calculation import haversine
 from app.database.models.user_profile import UserProfile
 from app.database.models.mechanic_data import MechanicData
@@ -201,6 +202,45 @@ class CustomerService:
         await self.db.commit()
         return new_booking
 
+    async def get_users_bookings(self, user_id: str):
+        user_id = str(user_id)
+
+        result = await self.db.execute(
+            select(CarBookingService)
+            .where(CarBookingService.booked_by == user_id)
+            .options(
+                joinedload(CarBookingService.car_issue)
+                .joinedload(UserCarIssue.car)
+            )
+        )
+
+        bookings = result.scalars().all()
+
+        response = []
+        for booking in bookings:
+            response.append({
+                "booking_id": str(booking.id),
+                "status": booking.status.value if booking.status else None,
+                "created_at": booking.created_at,
+                "updated_at": booking.updated_at,
+                "car_issue": {
+                    "issue_id": str(booking.car_issue.id),
+                    "summary": booking.car_issue.summary,
+                    "service_date": booking.car_issue.service_date,
+                    "service_time": booking.car_issue.service_time,
+                    "latitude": booking.car_issue.latitude,
+                    "longitude": booking.car_issue.longitude,
+                    "car": {
+                        "brand": booking.car_issue.car.brand,
+                        "model": booking.car_issue.car.model,
+                        "license_plate": booking.car_issue.car.license_plate,
+                    }
+                }
+            })
+
+        return response
+   
+   
     async def _read_upload(self, field: str, upload: UploadFile):
         data = await upload.read()
         return (field, (upload.filename, data, upload.content_type))
