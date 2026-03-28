@@ -10,7 +10,7 @@ async def _send_email(to: str, subject: str, html: str):
     message["To"] = to
     message["Subject"] = subject
     message.attach(MIMEText(html, "html"))
-    print(settings.EMAIL_USER, settings.EMAIL_PASS)
+
     await aiosmtplib.send(
         message,
         hostname=settings.SMTP_SERVER,

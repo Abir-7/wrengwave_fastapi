@@ -9,14 +9,14 @@ from app.utils.parse_time_date import parse_time_string, parse_date_string
 from app.database.models.customer_car_issue import UserCarIssue
 from app.database.models.user import User
 from app.database.models.user_location import UserLocation
-from sqlalchemy import select
+from sqlalchemy import select,update
 from sqlalchemy.orm import joinedload
 from app.utils.distance_calculation import haversine
 from app.database.models.user_profile import UserProfile
 from app.database.models.mechanic_data import MechanicData
 from app.database.models.service_booking import CarBookingService
 from app.database.models.ratings import AverageRating
-
+from app.database.models.enum import BookingStatus
 
 from app.database.models.enum import UserRole
 import httpx
@@ -30,7 +30,7 @@ class CustomerService:
     def __init__(self, db:AsyncSession):
         self.db=db
     
-     # ------------------------
+    # ------------------------
     async def save_user_car_data(self, user_id: str, car_data: List[UserCarData]) -> List[UserCar]:
         try:
             new_cars = [
@@ -45,9 +45,52 @@ class CustomerService:
         except Exception as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Failed to save car data: {str(e)}")
-        
+    # -----------------------
+    async def get_users_cars(self, user_id: str) -> List[UserCar]:
+        result = await self.db.execute(select(UserCar).where(UserCar.user_id == user_id))
+        cars = result.scalars().all()
+        return cars
+    #------------------------
+    async def get_users_bookings(self, user_id: str):
+        user_id = str(user_id)
 
-    # ------------------------
+        result = await self.db.execute(
+            select(CarBookingService)
+            .where(CarBookingService.booked_by == user_id).order_by(CarBookingService.created_at.desc())
+            .options(
+                joinedload(CarBookingService.car_issue)
+                .joinedload(UserCarIssue.car),joinedload(CarBookingService.service_price_details)
+            )
+        )
+
+        bookings = result.scalars().all()
+
+        response = []
+        for booking in bookings:
+            response.append({
+                "booking_id": str(booking.id),
+                "status": booking.status.value if booking.status else None,
+                "created_at": booking.created_at,
+                "updated_at": booking.updated_at,
+                "car_issue": {
+                    "issue_id": str(booking.car_issue.id),
+                    "summary": booking.car_issue.summary,
+                    "service_date": booking.car_issue.service_date,
+                    "service_time": booking.car_issue.service_time,
+                    "latitude": booking.car_issue.latitude,
+                    "longitude": booking.car_issue.longitude,
+                    "car": {
+                        "brand": booking.car_issue.car.brand,
+                        "model": booking.car_issue.car.model,
+                        "license_plate": booking.car_issue.car.license_plate,
+                        "car_image": booking.car_issue.car.image_url
+                    },
+                    "total_cost":booking.service_price_details.total_price if booking.service_price_details else None
+                }
+            })
+
+        return response
+   # ------------------------
     async def analyze_car_issue(
         self,
         user_id:str,
@@ -115,7 +158,7 @@ class CustomerService:
                 status_code=e.response.status_code,
                 detail=e.response.text,
             )
-        
+    # ------------------------
     async def get_mechanics(self, user_id: str, car_issue_id: str):
         user_id = str(user_id)
         car_issue_id = str(car_issue_id)
@@ -186,8 +229,7 @@ class CustomerService:
 
         nearby_mechanics.sort(key=lambda x: x["distance_km"])
         return nearby_mechanics
-    
-    
+    # --------------------------
     async def book_mechanic(self, mechanic_id: str,car_issue_id: str,user_id: str):
         mechanic_id = str(mechanic_id)
         car_issue_id = str(car_issue_id)
@@ -201,46 +243,7 @@ class CustomerService:
         self.db.add(new_booking)
         await self.db.commit()
         return new_booking
-
-    async def get_users_bookings(self, user_id: str):
-        user_id = str(user_id)
-
-        result = await self.db.execute(
-            select(CarBookingService)
-            .where(CarBookingService.booked_by == user_id)
-            .options(
-                joinedload(CarBookingService.car_issue)
-                .joinedload(UserCarIssue.car)
-            )
-        )
-
-        bookings = result.scalars().all()
-
-        response = []
-        for booking in bookings:
-            response.append({
-                "booking_id": str(booking.id),
-                "status": booking.status.value if booking.status else None,
-                "created_at": booking.created_at,
-                "updated_at": booking.updated_at,
-                "car_issue": {
-                    "issue_id": str(booking.car_issue.id),
-                    "summary": booking.car_issue.summary,
-                    "service_date": booking.car_issue.service_date,
-                    "service_time": booking.car_issue.service_time,
-                    "latitude": booking.car_issue.latitude,
-                    "longitude": booking.car_issue.longitude,
-                    "car": {
-                        "brand": booking.car_issue.car.brand,
-                        "model": booking.car_issue.car.model,
-                        "license_plate": booking.car_issue.car.license_plate,
-                    }
-                }
-            })
-
-        return response
-   
-   
+    #-------HELPER----------- 
     async def _read_upload(self, field: str, upload: UploadFile):
         data = await upload.read()
         return (field, (upload.filename, data, upload.content_type))

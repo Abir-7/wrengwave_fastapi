@@ -1,4 +1,4 @@
-from __future__ import annotations
+
 
 import uuid
 
@@ -10,9 +10,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database.models.base import BaseModel
 from app.database.models.enum import BookingStatus , booking_status_enum
+
+
+
 if TYPE_CHECKING:
     from app.database.models.user import User
     from app.database.models.customer_car_issue import UserCarIssue
+    from app.database.models.service_price_details import ServicePriceDetails
 
 
 
@@ -63,4 +67,9 @@ class CarBookingService(BaseModel):
     customer: Mapped["User"] = relationship(
         foreign_keys=[booked_by],
         back_populates="customer_bookings"
+    )
+
+    service_price_details: Mapped["ServicePriceDetails"] = relationship(
+        back_populates="car_booking_service",
+        cascade="all, delete-orphan",uselist=False
     )

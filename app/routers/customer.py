@@ -7,10 +7,9 @@ from app.database.models.enum import UserRole
 from typing import List
 from app.utils.data_format_helper.customer_car_data_helper import format_cars_with_images
 from app.services.customer import CustomerService
-from app.schemas.customer import BookMechanic
+from app.schemas.customer import BookMechanic,UpdateBookingStatus
 
 router = APIRouter(prefix="/customer", tags=["customer"])
-
 
 @router.post("/add-cars",)
 async def add_cars(
@@ -24,8 +23,8 @@ async def add_cars(
 
 @router.get("/my-cars")
 async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
-    pass
 
+    return await customer_service.get_users_cars(user_id=current_user.user_id)
 
 @router.get("/my-bookings")
 async def get_my_bookings(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
@@ -71,5 +70,6 @@ async def book_mechanic(
     payload:BookMechanic,
     current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
     return await customer_service.book_mechanic(mechanic_id=payload.mechanic_id,car_issue_id=payload.car_issue_id,user_id=current_user.user_id)
+
 
 

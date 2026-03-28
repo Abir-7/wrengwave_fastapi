@@ -20,7 +20,7 @@ class UserService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
-        return UserWithProfileResponse.model_validate(user.profile)
+        return UserWithProfileResponse.model_validate(user)
     
     
    

@@ -11,6 +11,11 @@ from app.schemas.user import UserWithProfileResponse
 from app.database.dependencies import get_user_service
 from app.dependencies.auth import get_current_user
 from app.services.user import UserService
+from app.schemas.common import BookingStatusReq
+from app.database.models.service_booking import BookingStatus
+
+
+
 router = APIRouter(prefix="/common", tags=["common"])
 
 @router.get("/me",response_model=UserWithProfileResponse)
@@ -48,3 +53,21 @@ async def get_mechanic_data(
     _: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
     common_service: CommonService = Depends(get_common_service)):
       return await common_service.get_mechanic_data(payload.user_id)
+
+@router.get("/get-booking-progress/{booking_id}")
+async def get_booking_progress(
+     booking_id:str,
+     credentials: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
+    common_service: CommonService = Depends(get_common_service)):
+      return await common_service.get_bookings_progress(booking_id=booking_id,user_role=credentials.user_role)
+
+@router.patch("/change-booking-status/{booking_id}")
+async def accept_or_reject_booking(booking_id: str, booking_status: BookingStatusReq, credentials: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)), common_service: CommonService = Depends(get_common_service)):
+
+    if credentials.user_role == UserRole.mechanic.value and  booking_status.status not in [BookingStatus.canceled.value, BookingStatus.inspecting.value, BookingStatus.completed.value,BookingStatus.accepted.value, BookingStatus.rejected.value]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
+    
+    if credentials.user_role == UserRole.customer.value and booking_status.status not in [BookingStatus.canceled.value, BookingStatus.completed.value, BookingStatus.paid.value, BookingStatus.arrived.value]:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
+
+    return await common_service.change_booking_status(booking_id=booking_id, booking_status=booking_status.status, user_id=credentials.user_id, user_role=credentials.user_role)

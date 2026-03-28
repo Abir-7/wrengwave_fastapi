@@ -18,10 +18,10 @@ class UserCarData(BaseModel):
     tag_number: str
 
 
-
-
-
-
 class BookMechanic(BaseModel):
     mechanic_id: str
     car_issue_id: str
+
+
+class UpdateBookingStatus(BaseModel):
+    status: str

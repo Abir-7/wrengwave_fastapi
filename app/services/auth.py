@@ -50,6 +50,7 @@ class AuthService:
             email=email,
             role=role,
             hashed_password=hash.get_password_hash(password),
+            is_active=True,  #! need to remove after test
         )
         self.db.add(new_user)
 
@@ -59,7 +60,7 @@ class AuthService:
             await self.db.rollback()
             raise ValueError("Email already registered") from e
 
-        code = generate_code(length=4)
+        code = generate_code(length=4,mode="numbers")
         expire_time = datetime.now(timezone.utc) + timedelta(minutes=10)
 
         self.db.add_all([
@@ -152,7 +153,7 @@ class AuthService:
             user_authentication.status = AuthStatus.expire
 
     
-        code = generate_code(length=4)
+        code = generate_code(length=4,mode="numbers")
         expire_time = datetime.now(timezone.utc) + timedelta(minutes=10)
         auth = UserAuthentication(user_id=user_authentication.user_id, code=code,expire_time=expire_time)
         self.db.add(auth)
@@ -174,11 +175,13 @@ class AuthService:
 
         if not user:
             raise ValueError("User not found")
+        
+        # ! need to uncomment after test
 
-        if not user.is_active:
-            raise ValueError("User is not active")
+        # if not user.is_active:
+        #     raise ValueError("User is not active")
 
-        code = generate_code(length=4)
+        code = generate_code(length=4,mode="numbers")
         expire_time = datetime.now(timezone.utc) + timedelta(minutes=10)
         auth = UserAuthentication(user_id=user.id, code=code,expire_time=expire_time)
         self.db.add(auth)
