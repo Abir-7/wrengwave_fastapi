@@ -16,9 +16,11 @@ from app.database.models.user_profile import UserProfile
 from app.database.models.mechanic_data import MechanicData
 from app.database.models.service_booking import CarBookingService
 from app.database.models.ratings import AverageRating
-from app.database.models.enum import BookingStatus
 
+from app.database.models.customer_car_image import UserCarImage
 from app.database.models.enum import UserRole
+from app.schemas.customer import UserCarDataResponse
+
 import httpx
 import asyncio
 
@@ -29,27 +31,51 @@ AI_SERVER_URL = "http://localhost:5000"
 class CustomerService:
     def __init__(self, db:AsyncSession):
         self.db=db
-    
-    # ------------------------
+    #-------------------------
+    async def save_user_car_image(self, user_id: str,  image_url:str):
+        try:
+            new_car_image = UserCarImage(user_id=user_id, image_url=image_url,image_id=image_url,is_linked=False)
+            self.db.add(new_car_image)
+            await self.db.commit()
+            await self.db.refresh(new_car_image)
+            return {"image_data_id":new_car_image.id}
+        except Exception as e:
+            await self.db.rollback()
+            raise HTTPException(status_code=500, detail=f"Failed to save car image: {str(e)}")
+     # ------------------------
     async def save_user_car_data(self, user_id: str, car_data: List[UserCarData]) -> List[UserCar]:
         try:
             new_cars = [
-                UserCar(**car, user_id=user_id)  # car is already a dict
+                UserCar(**car.model_dump(), user_id=user_id)  # car is already a dict
                 for car in car_data
                 ]
             self.db.add_all(new_cars)
-            await self.db.commit()
+    
+            self.db.flush()
             for car in new_cars:
+                await self.db.execute(update(UserCarImage).where(UserCarImage.id == car.car_image_id).values(is_linked=True))
                 await self.db.refresh(car)
+            
+            await self.db.commit()
             return new_cars
         except Exception as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Failed to save car data: {str(e)}")
     # -----------------------
-    async def get_users_cars(self, user_id: str) -> List[UserCar]:
-        result = await self.db.execute(select(UserCar).where(UserCar.user_id == user_id))
+    async def get_users_cars(self, user_id: str)-> List[UserCarDataResponse]:
+        result = await self.db.execute(select(UserCar).where(UserCar.user_id == user_id).options(joinedload(UserCar.car_image)))
         cars = result.scalars().all()
-        return cars
+
+        response = []
+        for car in cars:
+            response.append(
+                UserCarDataResponse(
+                **{k: getattr(car, k) for k in ['id','brand','model','year','license_plate','tag_number','user_id','created_at','updated_at']},
+                image_url=getattr(car.car_image, 'image_url', None)  # flatten image id
+            )
+        )
+
+        return response
     #------------------------
     async def get_users_bookings(self, user_id: str):
         user_id = str(user_id)
@@ -59,7 +85,7 @@ class CustomerService:
             .where(CarBookingService.booked_by == user_id).order_by(CarBookingService.created_at.desc())
             .options(
                 joinedload(CarBookingService.car_issue)
-                .joinedload(UserCarIssue.car),joinedload(CarBookingService.service_price_details)
+                .joinedload(UserCarIssue.car).joinedload(UserCar.car_image),joinedload(CarBookingService.service_price_details)
             )
         )
 
@@ -83,7 +109,7 @@ class CustomerService:
                         "brand": booking.car_issue.car.brand,
                         "model": booking.car_issue.car.model,
                         "license_plate": booking.car_issue.car.license_plate,
-                        "car_image": booking.car_issue.car.image_url
+                        "car_image": booking.car_issue.car.car_image.image_url
                     },
                     "total_cost":booking.service_price_details.total_price if booking.service_price_details else None
                 }

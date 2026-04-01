@@ -12,7 +12,7 @@ from app.database.models.base import BaseModel
 if TYPE_CHECKING:
     from app.database.models.user import User
     from app.database.models.customer_car_issue import UserCarIssue
-
+    from app.database.models.customer_car_image import UserCarImage
 
 class UserCar(BaseModel):
     __tablename__ = "user_cars"
@@ -22,8 +22,9 @@ class UserCar(BaseModel):
     year: Mapped[int] = mapped_column(Integer, nullable=False)
     license_plate: Mapped[str] = mapped_column(String, unique=True)
     tag_number: Mapped[str] = mapped_column(String)
-    image_url: Mapped[str] = mapped_column(String)
-    image_id: Mapped[str] = mapped_column(String)
+    car_image_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("user_car_images.id", ondelete="CASCADE"), nullable=False)
+
+    car_image: Mapped["UserCarImage"] = relationship(back_populates="user_car")
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

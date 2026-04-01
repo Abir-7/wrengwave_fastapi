@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from app.utils.email import send_password_reset_email,send_verification_email,resend_code_email
 from app.utils.epx_time import is_expire
 from app.schemas.auth import UserLoginResponseSchema
-from app.utils.jwt import create_jwt
+from app.utils.jwt import create_jwt , decode_jwt_unverified
 from app.core.config import settings
 from app.utils.file_upload import save_upload_file
 from app.utils.file_delete import delete_file
@@ -113,7 +113,8 @@ class AuthService:
 
         refresh_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,secret_key=settings.REFRESH_SECRET_KEY)
 
-        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token)
+        valid_till=decode_jwt_unverified(access_token).exp
+        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token,access_token_valid_till=valid_till)
 
 
     async def user_login(self, user_email: str, password: str)->UserLoginResponseSchema:
@@ -134,7 +135,8 @@ class AuthService:
 
         refresh_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,secret_key=settings.REFRESH_SECRET_KEY)
 
-        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token)
+        valid_till=decode_jwt_unverified(access_token).exp
+        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token,access_token_valid_till=valid_till)
     
 
     async def resend_code(self, user_id: str, background_tasks:BackgroundTasks)->None:
@@ -304,7 +306,8 @@ class AuthService:
         # Only upload avatar if provided, avoiding unnecessary I/O
         old_avatar = profile.avatar_url
         if avatar is not None:
-            new_avatar_url = await save_upload_file(avatar)
+            file_bytes = await avatar.read()
+            new_avatar_url = await save_upload_file(file_bytes,max_size_mb=5,allowed_extensions=['jpg', 'jpeg', 'png'])
             profile.avatar_url =  new_avatar_url
         
        

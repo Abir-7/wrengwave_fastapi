@@ -5,3 +5,5 @@ asyncpg
 pwdlib[argon2]
 aiosmtplib
 pyjwt
+python-magic-bin
+aiofiles

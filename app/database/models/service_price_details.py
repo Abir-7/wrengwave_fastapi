@@ -9,8 +9,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 class ServicePriceDetails(BaseModel):
     __tablename__ = "service_price_details"
-    booking_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("car_booking_services.id"),unique=True, nullable=False)
+    booking_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("car_booking_services.id",  ondelete="CASCADE" ),unique=True, nullable=False,
+                                                )
     total_price: Mapped[float]
     details: Mapped[Dict[str, float]] = mapped_column(JSONB)
 
-    car_booking_service: Mapped["CarBookingService"] = relationship(back_populates="service_price_details")
+    car_booking_service: Mapped["CarBookingService"] = relationship(back_populates="service_price_details",   )

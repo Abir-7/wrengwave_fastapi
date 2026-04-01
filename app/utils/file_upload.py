@@ -1,47 +1,84 @@
-import os
-import uuid
-from fastapi import UploadFile
+# utils/file_upload.py
+import aiofiles, magic, uuid, os, logging, mimetypes
+from fastapi import HTTPException
 
-# Base uploads folder
-# UPLOAD_ROOT = os.path.join(os.path.dirname(__file__), "uploads")
-UPLOAD_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "uploads")
-# Supported extensions
-IMAGE_EXT = {"jpg", "jpeg", "png", "gif", "webp"}
-AUDIO_EXT = {"mp3", "wav", "m4a", "ogg"}
-VIDEO_EXT = {"mp4", "mov", "avi", "mkv"}
-DOC_EXT = {"pdf", "doc", "docx", "txt", "xlsx", "csv"}
+logger      = logging.getLogger(__name__)
+UPLOAD_ROOT = "uploads"
 
+MIME_ALIASES = {
+    "audio/mp3":   "audio/mpeg",
+    "audio/x-mp3": "audio/mpeg",
+    "image/jpg":   "image/jpeg",
+}
 
-def get_folder(ext: str) -> str:
-    ext = ext.lower()
-    if ext in IMAGE_EXT:
-        return "images"
-    elif ext in AUDIO_EXT:
-        return "audio"
-    elif ext in VIDEO_EXT:
-        return "video"
-    elif ext in DOC_EXT:
-        return "documents"
-    else:
-        return "others"
+MIME_FOLDER_MAP = {
+    "image/jpeg":      "images",
+    "image/png":       "images",
+    "image/webp":      "images",
+    "audio/mpeg":      "audio",
+    "audio/wav":       "audio",
+    "application/pdf": "documents",
+    "video/mp4":       "videos",
+}
 
+def _normalize_mime(mime: str) -> str:
+    return MIME_ALIASES.get(mime, mime)
 
-async def save_upload_file(file: UploadFile) -> str:
-    """
-    Save uploaded file in uploads folder automatically based on type.
-    Returns file path for serving (e.g., /uploads/images/<uuid>.png)
-    """
-    ext = file.filename.split(".")[-1].lower()
-    folder = get_folder(ext)
+def _detect_mime(file_bytes: bytes) -> str:
+    return _normalize_mime(magic.from_buffer(file_bytes[:2048], mime=True))
 
-    save_dir = os.path.join(UPLOAD_ROOT, folder)
+def _mime_to_ext(mime: str) -> str:
+    """Get canonical extension from detected MIME."""
+    ext = mimetypes.guess_extension(mime)
+    if not ext:
+        raise HTTPException(status_code=422, detail=f"Unsupported type: '{mime}'")
+    # mimetypes can return .jpe for jpeg — normalize
+    return ext.replace(".jpe", ".jpeg")
+
+def _normalize_ext(ext: str) -> str:
+    ext = ext.lower().strip()
+    return ext if ext.startswith(".") else f".{ext}"
+
+async def save_upload_file(
+    file_bytes: bytes,
+    max_size_mb: float,
+    allowed_extensions: list[str],
+) -> str:
+    # 1. Size
+    if len(file_bytes) > int(max_size_mb * 1024 * 1024):
+        raise HTTPException(status_code=413, detail=f"Max size: {max_size_mb}MB")
+
+    # 2. Detect real MIME from bytes
+    actual_mime = _detect_mime(file_bytes)
+
+    # 3. Derive extension from detected MIME — no user input
+    actual_ext = _mime_to_ext(actual_mime)
+
+    # 4. Whitelist check
+    normalized_whitelist = [_normalize_ext(e) for e in allowed_extensions]
+    if actual_ext not in normalized_whitelist:
+        raise HTTPException(
+            status_code=422,
+            detail=f"File type '{actual_ext}' not allowed. Allowed: {', '.join(normalized_whitelist)}"
+        )
+
+    # 5. Supported folder?
+    folder = MIME_FOLDER_MAP.get(actual_mime)
+    if not folder:
+        raise HTTPException(status_code=422, detail=f"Unsupported type: '{actual_mime}'")
+
+    # 6. Save — extension from MIME, never from user
+    safe_filename = f"{uuid.uuid4()}{actual_ext}"
+    save_dir      = os.path.join(UPLOAD_ROOT, folder)
     os.makedirs(save_dir, exist_ok=True)
+    file_path     = os.path.join(save_dir, safe_filename)
 
-    filename = f"{uuid.uuid4()}.{ext}"
-    file_path = os.path.join(save_dir, filename)
+    try:
+        async with aiofiles.open(file_path, "wb") as f:
+            await f.write(file_bytes)
+    except OSError as e:
+        logger.error(f"Write failed: {file_path} — {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to save file")
 
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
-
-    # Return public path for FastAPI StaticFiles
-    return f"/uploads/{folder}/{filename}"
+    logger.info(f"Saved [{actual_mime}] → {file_path}")
+    return f"/uploads/{folder}/{safe_filename}"

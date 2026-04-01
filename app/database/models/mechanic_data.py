@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from typing import Optional, TYPE_CHECKING, List, Dict
+from typing import Optional, TYPE_CHECKING, List
 
 from sqlalchemy import String, Integer, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
+from sqlalchemy.dialects.postgresql import UUID, ARRAY
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from app.database.models.base import BaseModel
 
 if TYPE_CHECKING:
     from app.database.models.user import User
+    from app.database.models.mechanic_image_data import MechanicImageData
 
 
 class MechanicData(BaseModel):
@@ -22,10 +22,9 @@ class MechanicData(BaseModel):
     service_area: Mapped[Optional[str]] = mapped_column(String)
 
     specialist: Mapped[Optional[List[str]]] = mapped_column(ARRAY(String))
-    national_image_id: Mapped[Optional[str]] = mapped_column(String)
-    national_id_image_url: Mapped[Optional[str]] = mapped_column(String)
-    certificates: Mapped[Optional[Dict]] = mapped_column(JSONB)
 
+
+    
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -36,3 +35,4 @@ class MechanicData(BaseModel):
     user: Mapped["User"] = relationship(
         back_populates="mechanic_data"
     )
+

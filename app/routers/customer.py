@@ -5,21 +5,37 @@ from app.schemas.auth import TokenPayload
 from typing import Optional
 from app.database.models.enum import UserRole
 from typing import List
-from app.utils.data_format_helper.customer_car_data_helper import format_cars_with_images
+
 from app.services.customer import CustomerService
 from app.schemas.customer import BookMechanic,UpdateBookingStatus
+from app.schemas.customer import UserCarData
+from app.utils.file_upload import save_upload_file
 
 router = APIRouter(prefix="/customer", tags=["customer"])
 
-@router.post("/add-cars",)
+@router.post("/add-cars-image",)
+async def add_car_image(
+    image: UploadFile = File(...),
+    current_user: TokenPayload = Depends(require_role(UserRole.customer)),
+    customer_service: CustomerService = Depends(get_customer_service)):
+    file_bytes      = await image.read()
+    image_url = await save_upload_file(file_bytes,max_size_mb=5,allowed_extensions=['jpg', 'jpeg', 'png'])
+    return await customer_service.save_user_car_image(user_id=current_user.user_id, image_url=image_url)
+
+
+
+@router.post("/add-cars-data",)
 async def add_cars(
-    cars_data: str = Form(...),
-    images: List[UploadFile] = File(...),
+    cars_data: List[UserCarData] ,
+    # images: List[UploadFile] = File(...),
     current_user: TokenPayload = Depends(require_role(UserRole.customer)),
     customer_service: CustomerService = Depends(get_customer_service)):
 
-    formated_cars = await format_cars_with_images(cars_data, images)
-    return await customer_service.save_user_car_data(current_user.user_id, formated_cars)
+    # formated_cars = await format_cars_with_images(cars_data, images)
+    print(current_user.user_id)
+    return await customer_service.save_user_car_data(current_user.user_id, car_data=cars_data)
+
+
 
 @router.get("/my-cars")
 async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
@@ -64,6 +80,8 @@ async def get_mechanics(
     current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
     result=await customer_service.get_mechanics(car_issue_id=car_issue_id,user_id=current_user.user_id)
     return result
+
+
 
 @router.post("/book-mechanic")
 async def book_mechanic(

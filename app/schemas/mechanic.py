@@ -6,17 +6,14 @@ class Certificate(BaseModel):
     certificate_image_id: str
 
 
-class MechanicBaseData(BaseModel):
-    shop_name: Optional[str]
-    initial_charge: Optional[str]
-    year_of_experience: Optional[int]
-    service_area: Optional[str]
-    specialist: Optional[List[str]]
-    
-    # File-related fields
-    certificates: Optional[List[Certificate]] = []
-    national_id_image_url: Optional[str] = None
-    national_image_id: Optional[str] = None
+class MechanicDataRequest(BaseModel):
+    shop_name: str
+    initial_charge: str
+    year_of_experience: int
+    service_area: str
+    specialist: List[str]
+
+
 
 class MechanicDataResponse(BaseModel):
     id: UUID
@@ -26,11 +23,6 @@ class MechanicDataResponse(BaseModel):
     service_area: Optional[str]
     specialist: Optional[List[str]]
     user_id: UUID
-    # File-related fields
-    certificates: Optional[List[Certificate]] = []
-    national_id_image_url: Optional[str] = None
-    national_image_id: Optional[str] = None
-    
     model_config = {
         "from_attributes": True  
     }
@@ -42,7 +34,7 @@ class MechanicProfile(BaseModel):
     shop_name: Optional[str]
     initial_charge: Optional[str]
     year_of_experience: Optional[int]
-    service_area: Optional[str]
+    # service_area: Optional[str]
     specialist: Optional[List[str]]
     full_name: Optional[str]
     bio: Optional[str]

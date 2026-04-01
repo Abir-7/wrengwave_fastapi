@@ -9,4 +9,6 @@ from app.database.models.customer_car_issue import UserCarIssue ,CarIssueData
 from app.database.models.ratings import Ratings,AverageRating
 from app.database.models.service_booking import CarBookingService
 from app.database.models.service_price_details import ServicePriceDetails
-__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService","ServicePriceDetails"]
+from app.database.models.mechanic_image_data import MechanicImageData
+from app.database.models.customer_car_image import UserCarImage
+__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService","ServicePriceDetails","MechanicImageData","UserCarImage"]

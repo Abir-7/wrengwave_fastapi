@@ -8,6 +8,7 @@ class UserLocationCreate(BaseModel):
     address: Optional[str] = None
     city: Optional[str] = None
     country: Optional[str] = None
+    user_id: str
 
 
 

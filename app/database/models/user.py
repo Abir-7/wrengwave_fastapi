@@ -18,7 +18,7 @@ from app.database.models.user_authentication import UserAuthentication
 from app.database.models.customer_car_issue import UserCarIssue
 from app.database.models.enum import UserRole,user_role_enum
 from app.database.models.ratings import Ratings
-
+from app.database.models.mechanic_image_data import MechanicImageData
 
 
 # -----------------------------
@@ -120,4 +120,9 @@ class User(BaseModel):
         foreign_keys="Ratings.given_by",
         back_populates="user_given_by",
         cascade="all, delete-orphan",
+    )
+    mechanic_image_data: Mapped["MechanicImageData"] = relationship(
+        back_populates="user",
+        uselist=False,
+        cascade="all, delete-orphan",   
     )

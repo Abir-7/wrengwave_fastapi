@@ -29,9 +29,9 @@ async def get_me(
 @router.post("/locations", response_model=UserLocationResponse)
 async def update_user_location(
     payload:UserLocationCreate,
-    credentials: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
+
     common_service: CommonService = Depends(get_common_service)):
-    return await common_service.update_location(credentials.user_id, payload.latitude, payload.longitude , payload.address, payload.city, payload.country)
+    return await common_service.update_location(payload.user_id, payload.latitude, payload.longitude , payload.address, payload.city, payload.country)
 
 @router.get("/add-rating")
 async def add_rating(
@@ -47,12 +47,12 @@ async def get_average_rating(
     common_service: CommonService = Depends(get_common_service)):
       return await common_service.get_average_rating(payload.user_id)
 
-@router.get("/get-mechanic-data")
+@router.get("/get-mechanic-data/{user_id}")
 async def get_mechanic_data(
-     payload:GetRatingReq,
+    user_id:str,
     _: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
     common_service: CommonService = Depends(get_common_service)):
-      return await common_service.get_mechanic_data(payload.user_id)
+      return await common_service.get_mechanic_data(user_id)
 
 @router.get("/get-booking-progress/{booking_id}")
 async def get_booking_progress(

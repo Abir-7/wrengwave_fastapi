@@ -75,11 +75,12 @@ class CommonService:
     
 
     async def get_mechanic_data(self, mechanic_id: str) -> MechanicProfile:
+        print(mechanic_id)
         profile=await self.db.execute(select(UserProfile).where(UserProfile.user_id == mechanic_id))
         profile=profile.scalar_one_or_none()
         if not profile:
             raise HTTPException(status_code=404, detail="Profile not found")
-        result = await self.db.execute(select(MechanicData).where(MechanicData.user_id == mechanic_id))
+        result = await self.db.execute(select(MechanicData).where(MechanicData.user_id == mechanic_id).options(joinedload(MechanicData.user).joinedload(User.mechanic_image_data)))
         mechanic = result.scalar_one_or_none()
 
         if not mechanic:
@@ -102,7 +103,7 @@ class CommonService:
             bio=profile.bio,
             id=mechanic.user_id,
             specialist=mechanic.specialist,
-            certificates=mechanic.certificates,
+            certificates=mechanic.user.mechanic_image_data.certificates,
             year_of_experience=mechanic.year_of_experience,
             initial_charge=mechanic.initial_charge,
             shop_name=mechanic.shop_name,
@@ -110,6 +111,7 @@ class CommonService:
             total_rating=rating_data.total_rating,
             latitude=location.latitude,
             longitude=location.longitude
+          
         )
 
     async def get_bookings_progress(self, booking_id: str,user_role:str):

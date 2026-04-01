@@ -43,6 +43,7 @@ class UserLoginResponseSchema(BaseModel):
     role: str
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
+    access_token_valid_till: Optional[int] = None
 
 
 class ResendCodeRequestSchema(BaseModel):
