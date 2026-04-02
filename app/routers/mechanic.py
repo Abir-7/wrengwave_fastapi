@@ -37,19 +37,7 @@ async def save_mechanic_data(
         return result
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))        
-   
-@router.get("/get-all-booking")
-async def get_mechanics_all_booking_services(
-    booking_status: BookingStatus = Query(...), 
-    credentials: TokenPayload = Depends(require_role(UserRole.mechanic)),
-    mechanic_service: MechanicService = Depends(get_mechanic_service)
-):
-    return await mechanic_service.get_mechanics_all_booking_services(mechanic_id=credentials.user_id, booking_status=booking_status)
-
-@router.get("/get-booking-details/{booking_id}")
-async def get_booking_details(booking_id: str, _: TokenPayload = Depends(require_role(UserRole.mechanic)), mechanic_service: MechanicService = Depends(get_mechanic_service)):
-    return await mechanic_service.booking_detais(booking_id=booking_id)
-
+    
 @router.post("/add-price-details/{booking_id}")
 async def add_price_details(booking_id: str, price_details: dict, _: TokenPayload = Depends(require_role(UserRole.mechanic)), mechanic_service: MechanicService = Depends(get_mechanic_service)):
     return await mechanic_service.add_price_details(booking_id=booking_id, price_details=price_details, mechanic_id=_.user_id)

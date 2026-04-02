@@ -21,6 +21,8 @@ from app.database.models.customer_car_image import UserCarImage
 from app.database.models.enum import UserRole
 from app.schemas.customer import UserCarDataResponse
 
+from app.utils.join_image_url import ensure_full_url
+
 import httpx
 import asyncio
 
@@ -51,7 +53,7 @@ class CustomerService:
                 ]
             self.db.add_all(new_cars)
     
-            self.db.flush()
+            await self.db.flush()
             for car in new_cars:
                 await self.db.execute(update(UserCarImage).where(UserCarImage.id == car.car_image_id).values(is_linked=True))
                 await self.db.refresh(car)
@@ -71,49 +73,9 @@ class CustomerService:
             response.append(
                 UserCarDataResponse(
                 **{k: getattr(car, k) for k in ['id','brand','model','year','license_plate','tag_number','user_id','created_at','updated_at']},
-                image_url=getattr(car.car_image, 'image_url', None)  # flatten image id
+                image_url=  ensure_full_url(getattr(car.car_image, 'image_url', None))  # flatten image id
             )
         )
-
-        return response
-    #------------------------
-    async def get_users_bookings(self, user_id: str):
-        user_id = str(user_id)
-
-        result = await self.db.execute(
-            select(CarBookingService)
-            .where(CarBookingService.booked_by == user_id).order_by(CarBookingService.created_at.desc())
-            .options(
-                joinedload(CarBookingService.car_issue)
-                .joinedload(UserCarIssue.car).joinedload(UserCar.car_image),joinedload(CarBookingService.service_price_details)
-            )
-        )
-
-        bookings = result.scalars().all()
-
-        response = []
-        for booking in bookings:
-            response.append({
-                "booking_id": str(booking.id),
-                "status": booking.status.value if booking.status else None,
-                "created_at": booking.created_at,
-                "updated_at": booking.updated_at,
-                "car_issue": {
-                    "issue_id": str(booking.car_issue.id),
-                    "summary": booking.car_issue.summary,
-                    "service_date": booking.car_issue.service_date,
-                    "service_time": booking.car_issue.service_time,
-                    "latitude": booking.car_issue.latitude,
-                    "longitude": booking.car_issue.longitude,
-                    "car": {
-                        "brand": booking.car_issue.car.brand,
-                        "model": booking.car_issue.car.model,
-                        "license_plate": booking.car_issue.car.license_plate,
-                        "car_image": booking.car_issue.car.car_image.image_url
-                    },
-                    "total_cost":booking.service_price_details.total_price if booking.service_price_details else None
-                }
-            })
 
         return response
    # ------------------------
@@ -233,7 +195,7 @@ class CustomerService:
                 continue
 
             distance = haversine(latitude, longitude, loc.latitude, loc.longitude)
-
+            print(distance)
             if distance <= 4000:
                 nearby_mechanics.append({
                     "mechanic_id": str(user.id),

@@ -3,7 +3,7 @@ import aiofiles, magic, uuid, os, logging, mimetypes
 from fastapi import HTTPException
 
 logger      = logging.getLogger(__name__)
-UPLOAD_ROOT = "uploads"
+UPLOAD_ROOT = "app/uploads"
 
 MIME_ALIASES = {
     "audio/mp3":   "audio/mpeg",

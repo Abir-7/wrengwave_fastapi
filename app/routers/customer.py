@@ -22,8 +22,6 @@ async def add_car_image(
     image_url = await save_upload_file(file_bytes,max_size_mb=5,allowed_extensions=['jpg', 'jpeg', 'png'])
     return await customer_service.save_user_car_image(user_id=current_user.user_id, image_url=image_url)
 
-
-
 @router.post("/add-cars-data",)
 async def add_cars(
     cars_data: List[UserCarData] ,
@@ -35,18 +33,10 @@ async def add_cars(
     print(current_user.user_id)
     return await customer_service.save_user_car_data(current_user.user_id, car_data=cars_data)
 
-
-
 @router.get("/my-cars")
 async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
 
     return await customer_service.get_users_cars(user_id=current_user.user_id)
-
-@router.get("/my-bookings")
-async def get_my_bookings(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
-
-    return await customer_service.get_users_bookings(user_id=current_user.user_id)
-
 
 @router.post("/car-issue/{car_id}")
 async def car_proxy(
