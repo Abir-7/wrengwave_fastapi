@@ -12,7 +12,7 @@ from app.utils.file_upload import save_upload_file
 
 from app.database.models.service_booking import BookingStatus
 
-router = APIRouter(prefix="/mechanic", tags=["common"])
+router = APIRouter(prefix="/mechanic", tags=["mechanic"])
 
 @router.post("/save-mechanic-image-data")
 async def save_mechanic_image_data(
