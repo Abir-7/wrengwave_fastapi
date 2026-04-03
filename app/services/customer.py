@@ -9,14 +9,14 @@ from app.utils.parse_time_date import parse_time_string, parse_date_string
 from app.database.models.customer_car_issue import UserCarIssue
 from app.database.models.user import User
 from app.database.models.user_location import UserLocation
-from sqlalchemy import select,update
+from sqlalchemy import select,update,delete
 from sqlalchemy.orm import joinedload
 from app.utils.distance_calculation import haversine
 from app.database.models.user_profile import UserProfile
 from app.database.models.mechanic_data import MechanicData
 from app.database.models.service_booking import CarBookingService
 from app.database.models.ratings import AverageRating
-
+from app.database.models.enum import BookingStatus
 from app.database.models.customer_car_image import UserCarImage
 from app.database.models.enum import UserRole
 from app.schemas.customer import UserCarDataResponse
@@ -146,6 +146,95 @@ class CustomerService:
                 status_code=e.response.status_code,
                 detail=e.response.text,
             )
+    #------------------------
+    async def get_users_car_issues(
+        self,
+        user_id: str,
+        car_id: Optional[str] = None
+    ) -> List[dict]:
+
+        # 🔹 Base query
+        query = (
+            select(UserCarIssue)
+            .options(
+                joinedload(UserCarIssue.service_booking),
+                joinedload(UserCarIssue.car).joinedload(UserCar.car_image)
+            )
+            .where(UserCarIssue.user_id == user_id)
+        )
+
+        # 🔹 Optional filter
+        if car_id:
+            query = query.where(UserCarIssue.car_id == car_id)
+
+        # 🔹 Execute query
+        result = await self.db.execute(query)
+        issues = result.unique().scalars().all()
+
+        # 🔹 Format response
+        formatted_issues = []
+
+        for issue in issues:
+            car = issue.car
+            car_image = car.car_image if car else None
+            booking = issue.service_booking
+
+            formatted_issues.append({
+                "id": issue.id,
+                "issue": issue.issue,
+                "summary": issue.summary,
+                "service_date": issue.service_date,
+                "service_time": issue.service_time,
+                "status": booking.status if booking else None,
+
+                "car": {
+                    "brand": car.brand,
+                    "model": car.model,
+                    "image_url": ensure_full_url(car_image.image_url) if car_image else None
+                } if car else None,
+            })
+
+        return formatted_issues
+    # ------------------------
+    async def users_car_issue_details(
+        self,
+        car_issue_id: str,
+        user_id: str
+    ) -> List[dict]:
+
+        # 🔹 Base query
+        query = (
+            select(UserCarIssue)
+            .options(
+                joinedload(UserCarIssue.service_booking),
+                joinedload(UserCarIssue.car).joinedload(UserCar.car_image)
+            )
+            .where(UserCarIssue.id == car_issue_id, UserCarIssue.user_id == user_id)
+        )
+
+        # 🔹 Execute query
+        result = await self.db.execute(query)
+        issue = result.scalar_one_or_none()
+
+        car = issue.car
+        car_image = car.car_image if car else None
+        booking = issue.service_booking
+
+        return{
+                "id": issue.id,
+                "issue": issue.issue,
+                "summary": issue.summary,
+                "service_date": issue.service_date,
+                "service_time": issue.service_time,
+                "status": booking.status if booking else None,
+
+                "car": {
+                    "brand": car.brand,
+                    "model": car.model,
+                    "image_url": ensure_full_url(car_image.image_url) if car_image else None
+                } if car else None,
+            }
+
     # ------------------------
     async def get_mechanics(self, user_id: str, car_issue_id: str):
         user_id = str(user_id)
@@ -219,18 +308,37 @@ class CustomerService:
         return nearby_mechanics
     # --------------------------
     async def book_mechanic(self, mechanic_id: str,car_issue_id: str,user_id: str):
-        mechanic_id = str(mechanic_id)
-        car_issue_id = str(car_issue_id)
-        user_id = str(user_id)
-        new_booking = CarBookingService(
-            booked_by=user_id,
-            mechanic_id=mechanic_id,
-            user_car_issue_id=car_issue_id,
-        )
+        try:
+            mechanic_id = str(mechanic_id)
+            car_issue_id = str(car_issue_id)
+            user_id = str(user_id)
 
-        self.db.add(new_booking)
-        await self.db.commit()
-        return new_booking
+            get_existing_booking = await self.db.execute(select(CarBookingService).where(CarBookingService.user_car_issue_id == car_issue_id))
+            existing_booking = get_existing_booking.scalar_one_or_none()
+
+            if(existing_booking and existing_booking.status == "rejected"): 
+                # delete existing booking
+                await self.db.execute(delete(CarBookingService).where(CarBookingService.user_car_issue_id == car_issue_id))
+                await self.db.flush()
+                existing_booking = None
+            
+            
+            if existing_booking:
+                raise HTTPException(status_code=400, detail="Car issue has already been booked")
+
+            new_booking = CarBookingService(
+                booked_by=user_id,
+                mechanic_id=mechanic_id,
+                user_car_issue_id=car_issue_id,
+            )
+
+            self.db.add(new_booking)
+            await self.db.commit()
+            await self.db.refresh(new_booking)
+            return new_booking
+        except Exception as e:
+            await self.db.rollback()
+            raise e
     #-------HELPER----------- 
     async def _read_upload(self, field: str, upload: UploadFile):
         data = await upload.read()

@@ -14,8 +14,8 @@ from app.services.user import UserService
 from app.schemas.common import BookingStatusReq
 from app.database.models.service_booking import BookingStatus
 from fastapi import Query
-
-
+from typing import List,Optional
+from datetime import date
 router = APIRouter(prefix="/common", tags=["common"])
 
 @router.get("/me",response_model=UserWithProfileResponse)
@@ -56,17 +56,18 @@ async def get_mechanic_data(
 
 @router.get("/all-bookings")
 async def get_all_bookings(
-    booking_status: str = Query(...)
-    ,_: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
+    booking_status: Optional[List[BookingStatus]] = Query(default=None),
+    service_date: Optional[date] = Query(default=None),
+    _: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
     common_service: CommonService = Depends(get_common_service)):
-      return await common_service.get_all_bookings(booking_status=booking_status,user_role=_.user_role,user_id=_.user_id)
+      return await common_service.get_all_bookings(booking_status=booking_status,user_role=_.user_role,user_id=_.user_id,service_date=service_date)
 
-@router.get("/get-booking-progress/{booking_id}")
-async def get_booking_progress(
+@router.get("/booking-details/{booking_id}")
+async def get_booking_details(
      booking_id:str,
      credentials: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)),
     common_service: CommonService = Depends(get_common_service)):
-      return await common_service.get_bookings_progress(booking_id=booking_id,user_role=credentials.user_role)
+      return await common_service.get_booking_by_id(booking_id=booking_id,user_role=credentials.user_role,user_id=credentials.user_id)
 
 @router.patch("/change-booking-status/{booking_id}")
 async def change_booking_status(booking_id: str, booking_status: BookingStatusReq, credentials: TokenPayload = Depends(require_role(UserRole.mechanic,UserRole.customer)), common_service: CommonService = Depends(get_common_service)):

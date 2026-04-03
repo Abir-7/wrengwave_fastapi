@@ -2,7 +2,7 @@
 from app.database.models.user_location import UserLocation
 from sqlalchemy import select,update
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import Optional
+from typing import Optional,List
 
 from app.database.models.ratings import AverageRating,Ratings
 from app.schemas.mechanic import MechanicProfile
@@ -16,6 +16,8 @@ from app.database.models.enum import UserRole
 from app.utils.join_image_url import ensure_full_url
 from app.database.models.customer_car_issue import UserCarIssue
 from sqlalchemy.engine import CursorResult
+from datetime import date
+
 class CommonService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
@@ -123,58 +125,7 @@ class CommonService:
           
         )
 
-    async def get_bookings_progress(self, booking_id: str,user_role:str):
 
-        if user_role == "customer":
-            result = await self.db.execute(
-                select(CarBookingService).options(joinedload(CarBookingService.mechanic).joinedload(User.profile),
-                joinedload(CarBookingService.mechanic).joinedload(User.average_rating),joinedload(CarBookingService.service_price_details))
-                .where(CarBookingService.id == booking_id)
-            )
-            booking = result.scalar_one_or_none()
-            if not booking:
-                raise HTTPException(status_code=404, detail="Booking not found")
-            return {
-                "id": str(booking.id),
-                "status": booking.status,
-                "service_price_details": {
-                    "total_price": booking.service_price_details.total_price if booking.service_price_details else None,
-                    "details": booking.service_price_details.details if booking.service_price_details else None,
-                },
-                "user": {
-                    "id": str(booking.mechanic.id),
-                    "full_name": booking.mechanic.profile.full_name,
-                    "avatar_url": booking.mechanic.profile.avatar_url,
-                    "avg_rating": booking.mechanic.average_rating.avg_rating,
-                }
-            }
-
-        if user_role == "mechanic":
-            result = await self.db.execute(
-                select(CarBookingService).options(joinedload(CarBookingService.customer).joinedload(User.profile),
-                joinedload(CarBookingService.customer).joinedload(User.average_rating),joinedload(CarBookingService.service_price_details))
-                .where(CarBookingService.id == booking_id)
-            )
-            booking = result.scalar_one_or_none()
-            if not booking:
-                raise HTTPException(status_code=404, detail="Booking not found")
-            return {
-                "id": str(booking.id),
-                "status": booking.status,
-                "service_price_details": {
-                    "total_price": booking.service_price_details.total_price if booking.service_price_details else None,
-                    "details": booking.service_price_details.details if booking.service_price_details else None,
-                },
-                "user": {
-                    "id": str(booking.customer.id),
-                    "full_name": booking.customer.profile.full_name,
-                    "avatar_url": booking.customer.profile.avatar_url,
-                    "avg_rating": booking.customer.average_rating.avg_rating,
-                }
-            }
-
-        raise HTTPException(status_code=400, detail="Invalid user role")
-    
 
     async def change_booking_status(self, booking_id: str, booking_status: BookingStatus, user_id: str, user_role: str) -> None:
         try:
@@ -213,87 +164,41 @@ class CommonService:
     
     
     
-    # async def get_all_bookings(self,user_role:UserRole, booking_status: Optional[BookingStatus] = None,user_id:Optional[str]=None):
-  
-    #     result = await self.db.execute(select(CarBookingService).options(joinedload(CarBookingService.mechanic).joinedload(User.profile),joinedload(CarBookingService.mechanic).joinedload(User.location),joinedload(CarBookingService.customer).joinedload(User.location),
-    #     joinedload(CarBookingService.customer).joinedload(User.profile),joinedload(CarBookingService.service_price_details),joinedload(CarBookingService.car_issue).joinedload(UserCarIssue.car)).where(CarBookingService.status == booking_status).order_by(CarBookingService.created_at.desc()))
-
-    #     bookings = result.scalars().unique().all()
- 
-    #     result =[]
-
-    #     for booking in bookings:
-    #         data= {   
-    #     "id": booking.id,
-    #     "status": booking.status,
-    #     "created_at": booking.created_at,
-    #     "updated_at": booking.updated_at,
-        
-    #     "car_issue": {
-    #         "id": booking.car_issue.id,
-    #         "summary": booking.car_issue.summary,
-    #         "issue": booking.car_issue.issue,
-    #         "service_date": booking.car_issue.service_date,
-    #         "service_time": booking.car_issue.service_time,
-    #         "latitude": booking.car_issue.latitude,
-    #         "longitude": booking.car_issue.longitude,
-    #         "model": booking.car_issue.car.model if booking.car_issue.car else None,
-    #         "brand": booking.car_issue.car.brand if booking.car_issue.car else None,
-    #     } if booking.car_issue else None,
-    #         }
-    #         if user_role=="mechanic":
-    #             data["user"]={
-    #         "id": booking.customer.id,
-    #         "email": booking.customer.email,
-    #         "full_name": booking.customer.profile.full_name if booking.customer.profile else None,
-    #         "avatar_url": ensure_full_url(booking.customer.profile.avatar_url) if booking.customer.profile.avatar_url else None,
-    #         "latitude": booking.customer.location.latitude if booking.customer.location else None,
-    #         "longitude": booking.customer.location.longitude if booking.customer.location else None,
-    #         } if booking.customer else None,
-      
-
-    #         if user_role=="customer":
-    #             data["user"]={
-    #         "id": booking.mechanic.id,
-    #         "email": booking.mechanic.email,
-    #         "full_name": booking.mechanic.profile.full_name if booking.mechanic.profile else None,
-    #         "avatar_url": ensure_full_url(booking.mechanic.profile.avatar_url) if booking.mechanic.profile.avatar_url else None,
-    #         "latitude": booking.mechanic.location.latitude if booking.mechanic.location else None,
-    #         "longitude": booking.mechanic.location.longitude if booking.mechanic.location else None,
-    #         }if booking.mechanic else None
-    #         return result.append(data)
-        
-
-    #     return result
     
     async def get_all_bookings(
-    self,
-    user_role: UserRole,
-    booking_status: Optional[BookingStatus] = None,
-    user_id: Optional[str] = None
+        self,
+        user_role: UserRole,
+        booking_status: Optional[List[BookingStatus]] = None,
+        user_id: Optional[str] = None,
+        service_date: Optional[date] = None
     ):
-        # Base query
         query = select(CarBookingService).options(
             joinedload(CarBookingService.mechanic)
                 .joinedload(User.profile),
             joinedload(CarBookingService.mechanic)
                 .joinedload(User.location),
+            joinedload(CarBookingService.mechanic).joinedload(User.average_rating),
+            joinedload(CarBookingService.service_price_details),
+            joinedload(CarBookingService.customer).joinedload(User.average_rating),
             joinedload(CarBookingService.customer)
                 .joinedload(User.location),
             joinedload(CarBookingService.customer)
                 .joinedload(User.profile),
-            joinedload(CarBookingService.service_price_details),
             joinedload(CarBookingService.car_issue)
                 .joinedload(UserCarIssue.car)
         )
+        print(service_date)
+        if service_date:
+            query = query.join(CarBookingService.car_issue).where(
+            UserCarIssue.service_date == service_date
+        )
 
-        # Filter by booking status if provided
+        # Filter by multiple booking statuses if provided
         if booking_status:
-            query = query.where(CarBookingService.status == booking_status)
+            query = query.where(CarBookingService.status.in_(booking_status))  # 👈 in_ instead of ==
 
-        # Filter by user role
         if user_role == "customer" and user_id:
-            query = query.where(CarBookingService.customer_id == user_id)
+            query = query.where(CarBookingService.booked_by == user_id)
         elif user_role == "mechanic" and user_id:
             query = query.where(CarBookingService.mechanic_id == user_id)
 
@@ -308,9 +213,13 @@ class CommonService:
             data = {
                 "id": booking.id,
                 "status": booking.status,
+                "cost_details": booking.service_price_details.details if booking.service_price_details else None,
+                "total_cost": booking.service_price_details.total_price if booking.service_price_details else None,
                 "created_at": booking.created_at,
                 "updated_at": booking.updated_at,
                 "car_issue": {
+                    "severity": booking.car_issue.severity_level,
+                    "confidence_level": booking.car_issue.confidence_level,
                     "id": booking.car_issue.id,
                     "summary": booking.car_issue.summary,
                     "issue": booking.car_issue.issue,
@@ -323,7 +232,6 @@ class CommonService:
                 } if booking.car_issue else None,
             }
 
-            # Add user info based on role
             if user_role == "mechanic" and booking.customer:
                 data["user"] = {
                     "id": booking.customer.id,
@@ -332,6 +240,7 @@ class CommonService:
                     "avatar_url": ensure_full_url(booking.customer.profile.avatar_url) if booking.customer.profile and booking.customer.profile.avatar_url else None,
                     "latitude": booking.customer.location.latitude if booking.customer.location else None,
                     "longitude": booking.customer.location.longitude if booking.customer.location else None,
+                    "avg_rating": booking.customer.average_rating.avg_rating if booking.customer.average_rating else None
                 }
             elif user_role == "customer" and booking.mechanic:
                 data["user"] = {
@@ -341,8 +250,90 @@ class CommonService:
                     "avatar_url": ensure_full_url(booking.mechanic.profile.avatar_url) if booking.mechanic.profile and booking.mechanic.profile.avatar_url else None,
                     "latitude": booking.mechanic.location.latitude if booking.mechanic.location else None,
                     "longitude": booking.mechanic.location.longitude if booking.mechanic.location else None,
+                    "avg_rating": booking.mechanic.average_rating.avg_rating if booking.mechanic.average_rating else None
                 }
 
             result.append(data)
 
-        return bookings
+        return result
+
+    async def get_booking_by_id(
+        self,
+        booking_id: str,
+        user_role: UserRole,
+        user_id: Optional[str] = None,
+     
+    ):
+        query = select(CarBookingService).options(
+            joinedload(CarBookingService.mechanic)
+                .joinedload(User.profile),
+            joinedload(CarBookingService.mechanic)
+                .joinedload(User.location),
+            joinedload(CarBookingService.mechanic).joinedload(User.average_rating),
+            joinedload(CarBookingService.service_price_details),
+            joinedload(CarBookingService.customer).joinedload(User.average_rating),
+            joinedload(CarBookingService.customer)
+                .joinedload(User.location),
+            joinedload(CarBookingService.customer)
+                .joinedload(User.profile),
+            joinedload(CarBookingService.car_issue)
+                .joinedload(UserCarIssue.car)
+        ).where(CarBookingService.id == booking_id)
+
+  
+
+        # Restrict access based on role
+        if user_role == "customer" and user_id:
+            query = query.where(CarBookingService.booked_by == user_id)
+        elif user_role == "mechanic" and user_id:
+            query = query.where(CarBookingService.mechanic_id == user_id)
+
+        result_set = await self.db.execute(query)
+        booking = result_set.scalars().unique().one_or_none()
+
+        if not booking:
+            return None  # or raise HTTPException(status_code=404, detail="Booking not found")
+
+        data = {
+            "id": booking.id,
+            "status": booking.status,
+            "cost_details": booking.service_price_details.details if booking.service_price_details else None,
+            "total_cost": booking.service_price_details.total_price if booking.service_price_details else None,
+            "created_at": booking.created_at,
+            "updated_at": booking.updated_at,
+            "car_issue": {
+                "severity": booking.car_issue.severity_level,
+                "confidence_level": booking.car_issue.confidence_level,
+                "id": booking.car_issue.id,
+                "summary": booking.car_issue.summary,
+                "issue": booking.car_issue.issue,
+                "service_date": booking.car_issue.service_date,
+                "service_time": booking.car_issue.service_time,
+                "latitude": booking.car_issue.latitude,
+                "longitude": booking.car_issue.longitude,
+                "model": booking.car_issue.car.model if booking.car_issue.car else None,
+                "brand": booking.car_issue.car.brand if booking.car_issue.car else None,
+            } if booking.car_issue else None,
+        }
+
+        if user_role == "mechanic" and booking.customer:
+            data["user"] = {
+                "id": booking.customer.id,
+                "email": booking.customer.email,
+                "full_name": booking.customer.profile.full_name if booking.customer.profile else None,
+                "avatar_url": ensure_full_url(booking.customer.profile.avatar_url) if booking.customer.profile and booking.customer.profile.avatar_url else None,
+                "latitude": booking.customer.location.latitude if booking.customer.location else None,
+                "longitude": booking.customer.location.longitude if booking.customer.location else None,
+                "avg_rating": booking.customer.average_rating.avg_rating if booking.customer.average_rating else None
+            }
+        elif user_role == "customer" and booking.mechanic:
+            data["user"] = {
+                "id": booking.mechanic.id,
+                "email": booking.mechanic.email,
+                "full_name": booking.mechanic.profile.full_name if booking.mechanic.profile else None,
+                "avatar_url": ensure_full_url(booking.mechanic.profile.avatar_url) if booking.mechanic.profile and booking.mechanic.profile.avatar_url else None,
+                "latitude": booking.mechanic.location.latitude if booking.mechanic.location else None,
+                "longitude": booking.mechanic.location.longitude if booking.mechanic.location else None,
+                "avg_rating": booking.mechanic.average_rating.avg_rating if booking.mechanic.average_rating else None
+            }
+        return data

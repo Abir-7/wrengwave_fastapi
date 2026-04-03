@@ -39,7 +39,7 @@ async def get_my_cars(current_user: TokenPayload = Depends(require_role(UserRole
     return await customer_service.get_users_cars(user_id=current_user.user_id)
 
 @router.post("/car-issue/{car_id}")
-async def car_proxy(
+async def analyze_car_issue(
     
     car_id: str,
     description: str = Form(...),
@@ -64,14 +64,21 @@ async def car_proxy(
         longitude=longitude
     )
 
+
+@router.get("/user-car-issues")
+async def get_my_car_issues(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
+    return await customer_service.get_users_car_issues(user_id=current_user.user_id)
+
+@router.get("/car-issue-details/{car_issue_id}")
+async def get_car_issue_details(car_issue_id: str, _: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
+    return await customer_service.users_car_issue_details(car_issue_id=car_issue_id,user_id=_.user_id)
+
 @router.get("/get-mechanics")
 async def get_mechanics(
     car_issue_id: str = Query(..., description="ID of the car issue"),
     current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
     result=await customer_service.get_mechanics(car_issue_id=car_issue_id,user_id=current_user.user_id)
     return result
-
-
 
 @router.post("/book-mechanic")
 async def book_mechanic(

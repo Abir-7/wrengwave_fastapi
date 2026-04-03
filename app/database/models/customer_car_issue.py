@@ -49,9 +49,11 @@ class UserCarIssue(BaseModel):
         cascade="all, delete-orphan",
     )
 
-    service_booking: Mapped[List["CarBookingService"]] = relationship(
+    service_booking: Mapped["CarBookingService"]= relationship(
         back_populates="car_issue",
         cascade="all, delete-orphan",
+        uselist=False
+        
     )
 
 

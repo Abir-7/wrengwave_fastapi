@@ -1,3 +1,4 @@
+from __future__ import annotations
 
 
 import uuid
@@ -38,7 +39,7 @@ class CarBookingService(BaseModel):
     user_car_issue_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("user_car_issues.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=False,unique=True
     )
 
     mechanic_id: Mapped[uuid.UUID] = mapped_column(
@@ -56,7 +57,8 @@ class CarBookingService(BaseModel):
     # ---------------- Relationships ---------------- #
 
     car_issue: Mapped["UserCarIssue"] = relationship(
-        back_populates="service_booking"
+        back_populates="service_booking",
+        uselist=False
     )
 
     mechanic: Mapped["User"] = relationship(
