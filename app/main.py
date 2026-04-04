@@ -14,7 +14,7 @@ from app.core import exceptions
 from sqlalchemy.exc import IntegrityError
 from fastapi.exceptions import RequestValidationError
 from fastapi import HTTPException
-api_router = APIRouter(prefix="/api/v1")
+api_router = APIRouter(prefix="/api")
 
 
 @asynccontextmanager
