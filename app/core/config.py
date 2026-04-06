@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     REFRESH_SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_DAYS: int
     REFRESH_TOKEN_EXPIRE_DAYS:int
+
+    STRIPE_SECRET_KEY: str
+    STRIPE_WEBHOOK_SECRET: str
 #----------------
     class Config:
         env_file = ".env"

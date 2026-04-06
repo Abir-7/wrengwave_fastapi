@@ -4,6 +4,7 @@ from app.routers import auth
 from app.routers import common
 from app.routers import customer
 from app.routers import mechanic
+from app.routers import payment
 
 from app.core.http_client import close_client
 # In your main app (main.py)
@@ -40,6 +41,7 @@ api_router.include_router(auth.router)
 api_router.include_router(customer.router)
 api_router.include_router(common.router)
 api_router.include_router(mechanic.router)
+api_router.include_router(payment.router)
 
 app.include_router(api_router)
 

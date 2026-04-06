@@ -7,3 +7,4 @@ aiosmtplib
 pyjwt
 python-magic-bin
 aiofiles
+stripe
