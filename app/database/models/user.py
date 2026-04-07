@@ -53,6 +53,11 @@ class User(BaseModel):
       default=UserRole.customer
     )
 
+    stripe_account_id: Mapped[Optional[str]] = mapped_column(
+        String,
+        nullable=True,
+    )
+
     # ---------------- Relationships ---------------- #
 
     # One-to-One

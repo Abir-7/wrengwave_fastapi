@@ -11,4 +11,7 @@ from app.database.models.service_booking import CarBookingService
 from app.database.models.service_price_details import ServicePriceDetails
 from app.database.models.mechanic_image_data import MechanicImageData
 from app.database.models.customer_car_image import UserCarImage
-__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService","ServicePriceDetails","MechanicImageData","UserCarImage"]
+from app.database.models.notification import Notification
+from app.database.models.payment import Payment
+
+__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService","ServicePriceDetails","MechanicImageData","UserCarImage","Notification","Payment"]

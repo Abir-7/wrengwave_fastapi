@@ -18,7 +18,6 @@ class UserProfile(BaseModel):
     __tablename__ = "user_profiles"
 
     # ---------------- Columns ---------------- #
-
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
@@ -31,7 +30,6 @@ class UserProfile(BaseModel):
     avatar_url: Mapped[Optional[str]] = mapped_column(String)
 
     # ---------------- Relationships ---------------- #
-
     user: Mapped["User"] = relationship(
         back_populates="profile"
     )
