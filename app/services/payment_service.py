@@ -9,8 +9,9 @@ from app.database.models.payment import Payment
 from fastapi import HTTPException
 from app.database.models.enum import PaymentStatus
 from fastapi.responses import JSONResponse
-
-
+from stripe import AccountLink, Account
+from app.schemas.payment import ConnectAccountResponse
+from app.database.models import User
 stripe.api_key = settings.STRIPE_SECRET_KEY
 
 APP_FEE_PERCENT = 0.05  # 5%
@@ -110,6 +111,79 @@ class PaymentService:
         return intent
     
 
+
+    async def connect_mechanic_stripe(
+    self,
+    mechanic_id: str,
+    return_url: str,
+    refresh_url: str,
+) -> ConnectAccountResponse:
+        
+        loop = asyncio.get_event_loop()
+
+        result=await self.db.execute(select(User).where(User.id == mechanic_id))
+        mechanic = result.scalar_one_or_none()
+        if not mechanic:
+            raise ValueError(f"Mechanic {mechanic_id} not found")
+
+        email = mechanic.email
+
+        try:
+            # Step 1: Create Stripe Express account
+            account: Account = await loop.run_in_executor(
+                None,
+                lambda: stripe.Account.create(
+                    type="express",
+                    email=email,
+                    capabilities={
+                        "card_payments": {"requested": True},
+                        "transfers": {"requested": True},
+                    },
+                ),
+            )
+
+            # Step 2: Generate onboarding link
+            account_link: AccountLink = await loop.run_in_executor(
+                None,
+                lambda: stripe.AccountLink.create(
+                    account=account.id,
+                    refresh_url=refresh_url,
+                    return_url=return_url,
+                    type="account_onboarding",
+                ),
+            )
+
+            # Step 3: Save stripe_account_id to mechanic record
+            mechanic.stripe_account_id = account.id
+            await self.db.commit()
+            await self.db.refresh(mechanic)
+
+            return ConnectAccountResponse(
+                stripe_account_id=account.id,
+                onboarding_url=account_link.url,
+            )
+
+        except stripe.error.StripeError as e:
+            raise stripe.error.StripeError(f"Stripe error: {e.user_message}") from e
+
+
+    async def get_connect_account(self, account_id: str) -> Account:
+        """Retrieve a mechanic's Stripe account to check onboarding status."""
+        loop = asyncio.get_event_loop()
+        try:
+            account: Account = await loop.run_in_executor(
+                None,
+                lambda: stripe.Account.retrieve(account_id),
+            )
+            return account
+        except stripe.error.StripeError as e:
+            raise stripe.error.StripeError(f"Stripe error: {e.user_message}") from e
+
+
+
+
+
+
     async def handle_webhook(self, payload: bytes, sig_header: str | None) -> JSONResponse:
 
             
@@ -197,7 +271,7 @@ class PaymentService:
         await self.db.commit()
 
     async def _on_dispute_created(self, charge: dict) -> None:
-        
+
         payment_intent_id = charge.get("payment_intent")
         if not payment_intent_id:
             return
@@ -208,3 +282,5 @@ class PaymentService:
 
         payment.status = PaymentStatus.DISPUTED
         await self.db.commit()
+
+
