@@ -4,6 +4,7 @@ class Settings(BaseSettings):
     APP_NAME: str = "WrengWave"
     DATABASE_URL: str
     BASE_URL: str
+    FRONTEND_URL: str
 # email-------------
     SMTP_SERVER: str 
     SMTP_PORT: int

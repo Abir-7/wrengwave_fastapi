@@ -19,7 +19,7 @@ from app.database.models.customer_car_issue import UserCarIssue
 from app.database.models.enum import UserRole,user_role_enum
 from app.database.models.ratings import Ratings
 from app.database.models.mechanic_image_data import MechanicImageData
-
+from app.database.models.mechanic_stripe import MechanicStripe
 
 # -----------------------------
 # User Model
@@ -51,11 +51,6 @@ class User(BaseModel):
       user_role_enum,
       nullable=False,
       default=UserRole.customer
-    )
-
-    stripe_account_id: Mapped[Optional[str]] = mapped_column(
-        String,
-        nullable=True,
     )
 
     # ---------------- Relationships ---------------- #
@@ -131,3 +126,10 @@ class User(BaseModel):
         uselist=False,
         cascade="all, delete-orphan",   
     )
+
+    stripe_info: Mapped["MechanicStripe | None"] = relationship(
+    "MechanicStripe",
+    back_populates="mechanic",
+    uselist=False,
+     cascade="all, delete-orphan",
+)

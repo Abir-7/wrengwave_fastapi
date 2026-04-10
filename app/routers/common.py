@@ -76,7 +76,7 @@ async def change_booking_status(booking_id: str, booking_status: BookingStatusRe
     if credentials.user_role == UserRole.mechanic.value and  booking_status.status not in [BookingStatus.canceled.value, BookingStatus.inspecting.value, BookingStatus.completed.value,BookingStatus.accepted.value,BookingStatus.rejected.value]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
     
-    if credentials.user_role == UserRole.customer.value and booking_status.status not in [BookingStatus.canceled.value, BookingStatus.completed.value, BookingStatus.paid.value, BookingStatus.arrived.value]:
+    if credentials.user_role == UserRole.customer.value and booking_status.status not in [BookingStatus.canceled.value, BookingStatus.completed.value, BookingStatus.paid.value, BookingStatus.arrived.value,BookingStatus.repairing.value]:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid status")
 
     return await common_service.change_booking_status(booking_id=booking_id, booking_status=booking_status.status, user_id=credentials.user_id, user_role=credentials.user_role)

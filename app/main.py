@@ -15,6 +15,9 @@ from app.core import exceptions
 from sqlalchemy.exc import IntegrityError
 from fastapi.exceptions import RequestValidationError
 from fastapi import HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -27,6 +30,18 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
+origins = [
+    "https://stripe-front-end.vercel.app",
+    "http://10.10.12.70:3000"
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,   # your frontend domain
+    allow_credentials=True,
+    allow_methods=["*"],     # GET, POST, PUT, DELETE, etc.
+    allow_headers=["*"],     # Authorization, Content-Type, etc.
+)
 
 app.add_exception_handler(Exception, exceptions.global_exception_handler)
 app.add_exception_handler(HTTPException, exceptions.http_exception_handler)
