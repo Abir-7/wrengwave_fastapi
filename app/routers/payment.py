@@ -47,6 +47,7 @@ async def get_account_status(
 @router.post("/create-payment-intent/{booking_id}")
 async def create_payment(
     booking_id: str,
+    _: TokenPayload = Depends(require_role(UserRole.customer)),
     payment_service: PaymentService = Depends(get_payment_service),
 ):
     intent: PaymentIntent = await payment_service.create_payment_intent(booking_id=booking_id)
@@ -63,3 +64,13 @@ async def stripe_webhook(
     sig_header = request.headers.get("stripe-signature")
    
     return await payment_service.handle_webhook(payload, sig_header)
+
+@router.post("/webhook-payment", status_code=status.HTTP_200_OK)
+async def stripe_webhook(
+    request: Request,
+    payment_service: PaymentService = Depends(get_payment_service),
+):
+    payload    = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+   
+    return await payment_service.handle_webhook_payment(payload, sig_header)

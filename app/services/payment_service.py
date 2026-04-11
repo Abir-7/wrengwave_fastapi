@@ -230,11 +230,104 @@ class PaymentService:
     # ─────────────────────────────────────────────────────────────────────────
 
     async def handle_webhook(self, payload: bytes, sig_header: str | None) -> JSONResponse:
-        print("handle_webhook")
-      
+
         if not sig_header:
             raise HTTPException(status_code=400, detail="Missing Stripe-Signature header")
-        print("handle_webhook2")
+
+        loop = asyncio.get_running_loop()
+        try:
+            event = await loop.run_in_executor(
+                None,
+                lambda: stripe.Webhook.construct_event(
+                    payload, sig_header, settings.STRIPE_CONNECT_WEBHOOK_SECRET
+                ),
+            )
+        except stripe.error.SignatureVerificationError:
+            raise HTTPException(status_code=400, detail="Invalid Stripe signature")
+        except Exception:
+            raise HTTPException(status_code=400, detail="Malformed webhook payload")
+
+        event_dict = event.to_dict()
+        event_type: str = event_dict["type"]
+        event_data: dict = event_dict["data"]["object"]
+
+        print(f"event_type: {event_type}")
+        print(f"event_data: {event_data}")
+
+        match event_type:
+
+            case "account.updated":
+                stripe_account_id = event_data["id"]
+                charges_enabled   = event_data["charges_enabled"]
+                payouts_enabled   = event_data["payouts_enabled"]
+                details_submitted = event_data["details_submitted"]
+
+                result = await self.db.execute(
+                    select(MechanicStripe).where(
+                        MechanicStripe.stripe_account_id == stripe_account_id
+                    )
+                )
+                mechanic_stripe = result.scalar_one_or_none()
+
+                if mechanic_stripe:
+                    mechanic_stripe.stripe_charges_enabled = charges_enabled
+                    mechanic_stripe.stripe_payouts_enabled = payouts_enabled
+                    mechanic_stripe.stripe_onboarded = (
+                        details_submitted and charges_enabled and payouts_enabled
+                    )
+                    await self.db.commit()
+                    print(f"✅ Updated MechanicStripe for account: {stripe_account_id}")
+                else:
+                    print(f"⚠️ No MechanicStripe found for account: {stripe_account_id}")
+
+            case "capability.updated":
+                stripe_account_id = event_data["account"]
+                capability_id     = event_data["id"]      # "card_payments" or "transfers"
+                status            = event_data["status"]  # "active" | "inactive"
+
+                print(f"capability: {capability_id} → {status}")
+
+                result = await self.db.execute(
+                    select(MechanicStripe).where(
+                        MechanicStripe.stripe_account_id == stripe_account_id
+                    )
+                )
+                mechanic_stripe = result.scalar_one_or_none()
+
+                if mechanic_stripe:
+                    # Re-fetch the full account from Stripe to get the latest state
+                    loop = asyncio.get_running_loop()
+                    account = await loop.run_in_executor(
+                        None,
+                        lambda: stripe.Account.retrieve(stripe_account_id),
+                    )
+                    mechanic_stripe.stripe_charges_enabled = account.charges_enabled
+                    mechanic_stripe.stripe_payouts_enabled = account.payouts_enabled
+                    mechanic_stripe.stripe_onboarded = (
+                        account.details_submitted
+                        and account.charges_enabled
+                        and account.payouts_enabled
+                    )
+                    await self.db.commit()
+                    print(f"✅ Updated MechanicStripe for account: {stripe_account_id}")
+                else:
+                    print(f"⚠️ No MechanicStripe found for account: {stripe_account_id}")
+
+            case _:
+                print(f"unhandled event: {event_type}")
+
+        return JSONResponse({"received": True, "handled": True})
+
+
+
+
+
+
+    async def handle_webhook_payment(self, payload: bytes, sig_header: str | None) -> JSONResponse:
+
+        if not sig_header:
+            raise HTTPException(status_code=400, detail="Missing Stripe-Signature header")
+
         loop = asyncio.get_running_loop()
         try:
             event = await loop.run_in_executor(
@@ -243,165 +336,116 @@ class PaymentService:
                     payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
                 ),
             )
-            print("handle_webhook3")
         except stripe.error.SignatureVerificationError:
-            print("handle_err")
             raise HTTPException(status_code=400, detail="Invalid Stripe signature")
         except Exception:
-            print("handle_err2")
             raise HTTPException(status_code=400, detail="Malformed webhook payload")
 
-        # ✅ Convert Stripe object to plain dict first
         event_dict = event.to_dict()
+        event_type: str = event_dict["type"]
+        event_data: dict = event_dict["data"]["object"]
 
-        event_type: str          = event_dict["type"]
+        print(f"event_type: {event_type}")
+        print(f"event_data: {event_data}")
 
-        print(event_type)
+        match event_type:
 
-        event_obj:  dict         = event_dict["data"]["object"]
-        connected_account_id: str | None = event_dict.get("account")  # acct_xxxx
-        print(event_type)
-        if event_type not in WEBHOOK_HANDLERS:
-            return JSONResponse({"received": True, "handled": False})
+            case "payment_intent.succeeded":
+                payment_intent_id = event_data["id"]
+                charge_id         = event_data.get("latest_charge")
 
-        handler_map = {
-            "account.updated":               self._on_account_updated,
-            "application_fee.created":       self._on_application_fee_created,
-            "charge.refunded":               self._on_charge_refunded,
-            "payment_intent.succeeded":      self._on_payment_succeeded,
-            "payment_intent.payment_failed": self._on_payment_failed,
-            "transfer.created":              self._on_transfer_created,
-        }
+                result = await self.db.execute(
+                    select(Payment).where(Payment.payment_intent_id == payment_intent_id)
+                )
+                payment = result.scalar_one_or_none()
 
-        handler = handler_map.get(event_type)
-        # if handler:
-        #     await handler(event_obj, connected_account_id)
+                if payment:
+                    charge = await loop.run_in_executor(
+                        None,
+                        lambda: stripe.Charge.retrieve(charge_id, expand=["transfer"]),
+                    )
 
-        # return JSONResponse({"received": True, "handled": True})
-    # ─────────────────────────────────────────────────────────────────────────
-    # SHARED DB HELPERS
-    # ─────────────────────────────────────────────────────────────────────────
+                    transfer    = charge.transfer         # the Transfer object
+                    transfer_id = transfer.id if transfer else None
+                    transfer_amount = transfer.amount if transfer else None
 
-    async def _get_payment(self, payment_intent_id: str) -> Payment | None:
-        result = await self.db.execute(
-            select(Payment).where(Payment.payment_intent_id == payment_intent_id)
-        )
-        return result.scalar_one_or_none()
+                    payment.status      = PaymentStatus.PAID
+                    payment.transfer_id = transfer_id
+                    await self.db.commit()
+                    print(f"Payment succeeded: {payment_intent_id}")
 
-    async def _get_mechanic_stripe(self, stripe_account_id: str) -> MechanicStripe | None:
-        result = await self.db.execute(
-            select(MechanicStripe).where(
-                MechanicStripe.stripe_account_id == stripe_account_id
-            )
-        )
-        return result.scalar_one_or_none()
+     
+                    mechanic_stripe_result = await self.db.execute(
+                        select(MechanicStripe).where(
+                            MechanicStripe.mechanic_id == payment.mechanic_id
+                        )
+                    )
+                    mechanic_stripe = mechanic_stripe_result.scalar_one_or_none()
 
-    # ─────────────────────────────────────────────────────────────────────────
-    # EVENT HANDLERS
-    # ─────────────────────────────────────────────────────────────────────────
+                    if mechanic_stripe:
+                        mechanic_stripe.last_transfer_id     = transfer_id
+                        mechanic_stripe.last_transfer_amount = transfer_amount
+                        await self.db.commit()
+                        print(f"Transfer saved: {transfer_id} — amount: {transfer_amount}")
+                else:
+                    print(f"No payment found for intent: {payment_intent_id}")
 
-    async def _on_payment_succeeded(self, intent: dict, account_id: str | None) -> None:
-        payment = await self._get_payment(intent["id"])
-        if not payment:
-            logger.warning(f"payment_intent.succeeded: not found {intent['id']}")
-            return
 
-        payment.status = PaymentStatus.PAID
-        await self.db.commit()
-        logger.info(f"Payment {intent['id']} → PAID")
+            case "payment_intent.payment_failed":
+                payment_intent_id = event_data["id"]
+                last_error        = event_data.get("last_payment_error") or {}
+                failure_message   = last_error.get("message")
+                failure_code      = last_error.get("code")
 
-    async def _on_payment_failed(self, intent: dict, account_id: str | None) -> None:
-        payment = await self._get_payment(intent["id"])
-        if not payment:
-            logger.warning(f"payment_intent.payment_failed: not found {intent['id']}")
-            return
+                result = await self.db.execute(
+                    select(Payment).where(Payment.payment_intent_id == payment_intent_id)
+                )
+                payment = result.scalar_one_or_none()
 
-        last_error      = intent.get("last_payment_error") or {}
-        failure_message = last_error.get("message")
-        failure_code    = last_error.get("code")
+                if payment:
+                    payment.status          = PaymentStatus.FAILED
+                    payment.failure_message = failure_message
+                    payment.failure_code    = failure_code
+                    await self.db.commit()
+                    print(f"❌ Payment failed: {payment_intent_id} — {failure_code}: {failure_message}")
+                else:
+                    print(f"⚠️ No payment found for intent: {payment_intent_id}")
 
-        payment.status          = PaymentStatus.FAILED
-        payment.failure_message = failure_message
-        payment.failure_code    = failure_code
-        await self.db.commit()
-        logger.info(f"Payment {intent['id']} → FAILED | {failure_code}: {failure_message}")
+            case "charge.refunded":
+                payment_intent_id = event_data.get("payment_intent")
+                amount_refunded   = event_data.get("amount_refunded", 0)
+                refund_reason     = event_data.get("refunds", {}).get("data", [{}])[0].get("reason")
 
-    async def _on_account_updated(self, account: dict, account_id: str | None) -> None:
-        stripe_account_id = account.get("id")
+                result = await self.db.execute(
+                    select(Payment).where(Payment.payment_intent_id == payment_intent_id)
+                )
+                payment = result.scalar_one_or_none()
 
-        logger.info(
-        f"account.updated payload → "
-        f"id={stripe_account_id} | "
-        f"details_submitted={account.get('details_submitted')} | "
-        f"charges_enabled={account.get('charges_enabled')} | "
-        f"payouts_enabled={account.get('payouts_enabled')}"
-    )
+                if payment:
+                    payment.status          = PaymentStatus.REFUNDED
+                    payment.amount_refunded = amount_refunded
+                    payment.refund_reason   = refund_reason
+                    await self.db.commit()
+                    print(f"↩️ Payment refunded: {payment_intent_id} — amount: {amount_refunded}")
+                else:
+                    print(f"⚠️ No payment found for intent: {payment_intent_id}")
 
-        mechanic_stripe = await self._get_mechanic_stripe(stripe_account_id)
-        if not mechanic_stripe:
-            logger.warning(f"account.updated: no record found for {stripe_account_id}")
-            return
-        print(account)
-        mechanic_stripe.stripe_onboarded       = account.get("details_submitted", False)
-        mechanic_stripe.stripe_charges_enabled = account.get("charges_enabled", False)
-        mechanic_stripe.stripe_payouts_enabled = account.get("payouts_enabled", False)
-        await self.db.commit()
-        logger.info(
-            f"MechanicStripe {mechanic_stripe.mechanic_id} → "
-            f"onboarded={mechanic_stripe.stripe_onboarded}"
-        )
+            case _:
+                print(f"unhandled event: {event_type}")
 
-    async def _on_application_fee_created(self, fee: dict, account_id: str | None) -> None:
-        logger.info(
-            f"App fee → id={fee.get('id')} | "
-            f"amount={fee.get('amount')} {fee.get('currency')} | "
-            f"charge={fee.get('charge')} | account={account_id}"
-        )
+        return JSONResponse({"received": True, "handled": True})
 
-    async def _on_charge_refunded(self, charge: dict, account_id: str | None) -> None:
-        payment_intent_id = charge.get("payment_intent")
-        amount_refunded   = charge.get("amount_refunded", 0)
-        refunds_data      = charge.get("refunds", {}).get("data", [])
-        latest_refund     = refunds_data[0] if refunds_data else {}
 
-        if not payment_intent_id:
-            logger.warning("charge.refunded: no payment_intent_id on charge")
-            return
 
-        payment = await self._get_payment(payment_intent_id)
-        if not payment:
-            logger.warning(f"charge.refunded: payment not found {payment_intent_id}")
-            return
 
-        if charge.get("amount") == amount_refunded:
-            payment.status = PaymentStatus.REFUNDED
-        else:
-            payment.status = PaymentStatus.PARTIALLY_REFUNDED
 
-        payment.amount_refunded = amount_refunded
-        payment.refund_reason   = latest_refund.get("reason")
-        await self.db.commit()
-        logger.info(f"Payment {payment_intent_id} → {payment.status} | {amount_refunded} cents")
 
-    async def _on_transfer_created(self, transfer: dict, account_id: str | None) -> None:
-        destination = transfer.get("destination")
-        # payment_intent_id = transfer.get("source_transaction")
-        # if payment_intent_id:
-        #     payment = await self._get_payment(payment_intent_id)
-        #     if payment:
-        #         payment.status = PaymentStatus.PAID
-        #         await self.db.commit()
-        #         logger.info(f"Payment {payment_intent_id} → PAID via transfer {transfer.get('id')}")
 
-        mechanic_stripe = await self._get_mechanic_stripe(destination)
-        if not mechanic_stripe:
-            logger.warning(f"transfer.created: no record found for {destination}")
-            return
 
-        mechanic_stripe.last_transfer_id     = transfer.get("id")
-        mechanic_stripe.last_transfer_amount = transfer.get("amount")
-        await self.db.commit()
-        logger.info(
-            f"Transfer → mechanic {mechanic_stripe.mechanic_id} | "
-            f"{transfer.get('id')} | {transfer.get('amount')} {transfer.get('currency')}"
-        )
+
+
+
+
+
+
+

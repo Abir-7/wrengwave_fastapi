@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     STRIPE_SECRET_KEY: str
     STRIPE_WEBHOOK_SECRET: str
+    STRIPE_CONNECT_WEBHOOK_SECRET: str
 #----------------
     class Config:
         env_file = ".env"
