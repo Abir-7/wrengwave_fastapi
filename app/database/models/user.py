@@ -21,6 +21,9 @@ from app.database.models.ratings import Ratings
 from app.database.models.mechanic_image_data import MechanicImageData
 from app.database.models.mechanic_stripe import MechanicStripe
 
+from app.database.models.chat_message import ChatMessage
+from app.database.models.chat_room_members import ChatRoomMember
+from app.database.models.chat_message_read import ChatMessageRead
 # -----------------------------
 # User Model
 # -----------------------------
@@ -132,4 +135,18 @@ class User(BaseModel):
     back_populates="mechanic",
     uselist=False,
      cascade="all, delete-orphan",
+)
+    
+    messages: Mapped[List["ChatMessage"]] = relationship(
+    back_populates="user",
+    cascade="all, delete-orphan",
+)
+
+    chat_rooms: Mapped[List["ChatRoomMember"]] = relationship(
+    back_populates="user",
+    cascade="all, delete-orphan",
+)
+    message_reads: Mapped[List["ChatMessageRead"]] = relationship(
+    back_populates="user",
+    cascade="all, delete-orphan",
 )

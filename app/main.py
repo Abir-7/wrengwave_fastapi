@@ -5,7 +5,7 @@ from app.routers import common
 from app.routers import customer
 from app.routers import mechanic
 from app.routers import payment
-
+from app.websocket import chat as ws_chat
 from app.core.http_client import close_client
 # In your main app (main.py)
 from contextlib import asynccontextmanager
@@ -32,6 +32,8 @@ app = FastAPI(lifespan=lifespan)
 
 
 origins = [
+
+    "*",
     "https://stripe-front-end.vercel.app",
     "http://10.10.12.70:3000"
 ]
@@ -57,6 +59,7 @@ api_router.include_router(customer.router)
 api_router.include_router(common.router)
 api_router.include_router(mechanic.router)
 api_router.include_router(payment.router)
+app.include_router(ws_chat.router)
 
 app.include_router(api_router)
 

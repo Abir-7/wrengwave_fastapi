@@ -7,6 +7,7 @@ from app.services.common import CommonService
 from app.services.mechanic import MechanicService
 from app.services.customer import CustomerService
 from app.services.payment_service import PaymentService
+from app.services.chat import UserChatService
 def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
     return AuthService(db)
 
@@ -25,3 +26,6 @@ def get_customer_service(db: AsyncSession = Depends(get_db)) -> CustomerService:
 
 def get_payment_service(db: AsyncSession = Depends(get_db)) -> PaymentService:
     return PaymentService(db)
+
+def get_chat_service(db: AsyncSession = Depends(get_db)) -> UserChatService:
+    return UserChatService(db)
