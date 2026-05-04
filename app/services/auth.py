@@ -104,7 +104,15 @@ class AuthService:
         if auth.code != code:
             raise ValueError("Incorrect verification code")
 
-        user = await self.db.get(User, user_id)
+        user_result = await self.db.execute(
+            select(User)
+            .options(selectinload(User.mechanic_data), selectinload(User.cars))
+            .where(User.id == user_id)
+        )
+        user = user_result.scalar_one_or_none()
+        if not user:
+             raise ValueError("User not found")
+
         user.is_active = True
         auth.status=AuthStatus.success
         await self.db.commit()
@@ -114,11 +122,27 @@ class AuthService:
         refresh_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,secret_key=settings.REFRESH_SECRET_KEY)
 
         valid_till=decode_jwt_unverified(access_token).exp
-        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token,access_token_valid_till=valid_till)
+
+        is_mechanic_data_complete = user.mechanic_data is not None
+        is_user_car_data_complete = len(user.cars) > 0
+
+        return UserLoginResponseSchema(
+            user_id=str(user.id), 
+            role=user.role,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            access_token_valid_till=valid_till,
+            is_mechanic_data_complete=is_mechanic_data_complete,
+            is_user_car_data_complete=is_user_car_data_complete
+        )
 
 
     async def user_login(self, user_email: str, password: str)->UserLoginResponseSchema:
-        result = await self.db.execute(select(User).filter(User.email == user_email))
+        result = await self.db.execute(
+            select(User)
+            .options(selectinload(User.mechanic_data), selectinload(User.cars))
+            .filter(User.email == user_email)
+        )
         user = result.scalar_one_or_none()
 
         if not user:
@@ -136,7 +160,19 @@ class AuthService:
         refresh_token= create_jwt(user_email=user.email,user_id=str(user.id),user_role=user.role,expires_in_days=settings.REFRESH_TOKEN_EXPIRE_DAYS,secret_key=settings.REFRESH_SECRET_KEY)
 
         valid_till=decode_jwt_unverified(access_token).exp
-        return UserLoginResponseSchema(user_id=str(user.id), role=user.role,access_token=access_token,refresh_token=refresh_token,access_token_valid_till=valid_till)
+
+        is_mechanic_data_complete = user.mechanic_data is not None
+        is_user_car_data_complete = len(user.cars) > 0
+
+        return UserLoginResponseSchema(
+            user_id=str(user.id), 
+            role=user.role,
+            access_token=access_token,
+            refresh_token=refresh_token,
+            access_token_valid_till=valid_till,
+            is_mechanic_data_complete=is_mechanic_data_complete,
+            is_user_car_data_complete=is_user_car_data_complete
+        )
     
 
     async def resend_code(self, user_id: str, background_tasks:BackgroundTasks)->None:

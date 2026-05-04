@@ -44,6 +44,8 @@ class UserLoginResponseSchema(BaseModel):
     access_token: Optional[str] = None
     refresh_token: Optional[str] = None
     access_token_valid_till: Optional[int] = None
+    is_mechanic_data_complete: bool = False
+    is_user_car_data_complete: bool = False
 
 
 class ResendCodeRequestSchema(BaseModel):
