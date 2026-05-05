@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from pydantic import BaseModel
 from typing import List, Optional
 from uuid import UUID
@@ -8,7 +10,7 @@ class Certificate(BaseModel):
 
 class MechanicDataRequest(BaseModel):
     shop_name: str
-    initial_charge: str
+    initial_charge: Decimal
     year_of_experience: int
     service_area: str
     specialist: List[str]
@@ -18,7 +20,7 @@ class MechanicDataRequest(BaseModel):
 class MechanicDataResponse(BaseModel):
     id: UUID
     shop_name: Optional[str]
-    initial_charge: Optional[str]
+    initial_charge: Optional[Decimal] = None
     year_of_experience: Optional[int]
     service_area: Optional[str]
     specialist: Optional[List[str]]
