@@ -52,7 +52,9 @@ async def analyze_car_issue(
     current_user: TokenPayload = Depends(require_role(UserRole.customer)),
     customer_service: CustomerService = Depends(get_customer_service),
 ):
-    return await customer_service.analyze_car_issue(
+    print("hit")
+
+    result=await customer_service.analyze_car_issue(
         user_id=current_user.user_id,
         car_id=car_id,        
         description=description,
@@ -63,7 +65,8 @@ async def analyze_car_issue(
         latitude=latitude,
         longitude=longitude
     )
-
+    print(result)
+    return result
 
 @router.get("/user-car-issues")
 async def get_my_car_issues(current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
@@ -77,7 +80,9 @@ async def get_car_issue_details(car_issue_id: str, _: TokenPayload = Depends(req
 async def get_mechanics(
     car_issue_id: str = Query(..., description="ID of the car issue"),
     current_user: TokenPayload = Depends(require_role(UserRole.customer)), customer_service: CustomerService = Depends(get_customer_service)):
+   
     result=await customer_service.get_mechanics(car_issue_id=car_issue_id,user_id=current_user.user_id)
+    print(result,"ff")
     return result
 
 @router.post("/book-mechanic")
