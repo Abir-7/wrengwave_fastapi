@@ -40,11 +40,14 @@ class CustomerService:
             self.db.add(new_car_image)
             await self.db.commit()
             await self.db.refresh(new_car_image)
-            return {"image_data_id":new_car_image.id}
+            return {"image_data_id":new_car_image.id ,"uri":new_car_image.image_url}
         except Exception as e:
             await self.db.rollback()
             raise HTTPException(status_code=500, detail=f"Failed to save car image: {str(e)}")
-     # ------------------------
+        
+    # ------------------------
+
+
     async def save_user_car_data(self, user_id: str, car_data: List[UserCarData]) -> List[UserCar]:
         try:
             new_cars = [
