@@ -14,13 +14,18 @@ class Settings(BaseSettings):
     REFRESH_SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_DAYS: int
     REFRESH_TOKEN_EXPIRE_DAYS:int
-
+# payment--------------
     STRIPE_SECRET_KEY: str
     STRIPE_WEBHOOK_SECRET: str
     STRIPE_CONNECT_WEBHOOK_SECRET: str
+# admin account info----
+    ADMIN_EMAIL:str
+    ADMIN_PASSWORD:str
 #----------------
     class Config:
         env_file = ".env"
 
 settings = Settings()
+
+
 

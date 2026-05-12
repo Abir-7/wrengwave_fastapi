@@ -14,10 +14,12 @@ from app.database.models.customer_car_image import UserCarImage
 from app.database.models.notification import Notification
 from app.database.models.payment import Payment
 from app.database.models.mechanic_stripe import MechanicStripe
+from app.database.models.car_data import CarData
 
 from app.database.models.chat_message import ChatMessage
 from app.database.models.chat_room_members import ChatRoomMember
 from app.database.models.chat_message_read import ChatMessageRead
 from app.database.models.chat_room import ChatRoom
+from app.database.models.car_data import CarData
 
-__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService","ServicePriceDetails","MechanicImageData","UserCarImage","Notification","Payment","MechanicStripe","ChatMessage","ChatRoomMember","ChatMessageRead","ChatRoom"]
+__all__ = ["User", "UserProfile", "BaseModel", "UserAuthentication","UserCar","UserLocation","MechanicData","UserCarIssue","CarIssueData","Ratings","AverageRating","CarBookingService","ServicePriceDetails","MechanicImageData","UserCarImage","Notification","Payment","MechanicStripe","CarData","ChatMessage","ChatRoomMember","ChatMessageRead","ChatRoom","CarData"]

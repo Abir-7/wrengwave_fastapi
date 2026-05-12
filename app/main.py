@@ -7,6 +7,7 @@ from app.routers import mechanic
 from app.routers import payment
 from app.websocket import chat as ws_chat
 from app.core.http_client import close_client
+from app.database.seeders import run_seeders
 # In your main app (main.py)
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -24,6 +25,7 @@ api_router = APIRouter(prefix="/api")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup logic (if needed)
+    await run_seeders()
     yield
     # Shutdown logic
     await close_client()
