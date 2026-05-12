@@ -15,12 +15,32 @@ from app.database.models.user import User
 from app.database.models.enum import UserRole
 from app.utils.join_image_url import ensure_full_url
 from app.database.models.customer_car_issue import UserCarIssue
+from app.database.models.car_data import CarData
 from sqlalchemy.engine import CursorResult
 from datetime import date
 
 class CommonService:
     def __init__(self, db: AsyncSession) -> None:
         self.db = db
+
+    async def add_car_data(self, brand: str, model: str):
+        new_car = CarData(brand=brand, model=model)
+        self.db.add(new_car)
+        await self.db.commit()
+        await self.db.refresh(new_car)
+        return new_car
+
+    async def get_all_car_data(self):
+        result = await self.db.execute(select(CarData).order_by(CarData.brand, CarData.model))
+        cars = result.scalars().all()
+        
+        grouped_cars = {}
+        for car in cars:
+            if car.brand not in grouped_cars:
+                grouped_cars[car.brand] = []
+            grouped_cars[car.brand].append(car.model)
+            
+        return grouped_cars
 
     async def update_location(
             self, 

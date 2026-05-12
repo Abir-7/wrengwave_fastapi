@@ -32,3 +32,13 @@ class GetRatingReq(BaseModel):
 
 class BookingStatusReq(BaseModel):
     status: str
+
+class CarDataCreate(BaseModel):
+    brand: str
+    model: str
+
+class CarDataResponse(CarDataCreate):
+    id: UUID
+
+    class Config:
+        from_attributes = True

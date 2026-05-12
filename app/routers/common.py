@@ -11,12 +11,24 @@ from app.schemas.user import UserWithProfileResponse
 from app.database.dependencies import get_user_service
 from app.dependencies.auth import get_current_user
 from app.services.user import UserService
-from app.schemas.common import BookingStatusReq
+from app.schemas.common import BookingStatusReq, CarDataCreate, CarDataResponse
 from app.database.models.service_booking import BookingStatus
 from fastapi import Query
 from typing import List,Optional
 from datetime import date
 router = APIRouter(prefix="/common", tags=["common"])
+
+@router.post("/car-data", response_model=CarDataResponse, status_code=status.HTTP_201_CREATED)
+async def add_car_data(
+    payload: CarDataCreate,
+    _: TokenPayload = Depends(require_role(UserRole.admin)),
+    common_service: CommonService = Depends(get_common_service)):
+    return await common_service.add_car_data(brand=payload.brand, model=payload.model)
+
+@router.get("/car-data")
+async def get_all_car_data(
+    common_service: CommonService = Depends(get_common_service)):
+    return await common_service.get_all_car_data()
 
 @router.get("/me",response_model=UserWithProfileResponse)
 async def get_me(
